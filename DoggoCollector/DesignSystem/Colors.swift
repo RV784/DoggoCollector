@@ -35,6 +35,9 @@ enum DoggoColor {
 
     static let heartPink = Color(hex: 0xF2777B)
 
+    /// Eyebrow-label color for the Share card's secondary metadata row only.
+    static let metadataLabel = Color(hex: 0xB29A78)
+
     static let cameraGradient = LinearGradient(
         colors: [sky, sage],
         startPoint: .top,

@@ -68,7 +68,10 @@ struct CollectionView: View {
                 // from sliding it in from a screen edge when it reappears.
                 ZStack {
                     if surfaceState == .idle {
-                        catchButton
+                        HStack(spacing: DoggoSpacing.md) {
+                            catchButton
+                            pawButton
+                        }
                     }
                 }
                 .padding(.horizontal, DoggoSpacing.lg)
@@ -102,6 +105,8 @@ struct CollectionView: View {
                 CardDetailView(dog: dog)
             }
             .navigationDestination(for: ProfileDestination.self) { _ in ProfileView() }
+            .navigationDestination(for: CareDestination.self) { _ in CareView() }
+            .navigationDestination(for: MapDestination.self) { _ in MapView() }
         }
     }
 
@@ -116,10 +121,10 @@ struct CollectionView: View {
                     .foregroundStyle(DoggoColor.ink)
             }
             Spacer()
-            NavigationLink(value: ProfileDestination()) {
-                Image(systemName: "person.fill")
+            NavigationLink(value: MapDestination()) {
+                Image(systemName: "mappin")
                     .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 50, height: 50)
                     .background(DoggoColor.marigold, in: Circle())
             }
         }
@@ -192,6 +197,17 @@ struct CollectionView: View {
         .buttonStyle(ScalePressButtonStyle())
     }
 
+    private var pawButton: some View {
+        NavigationLink(value: CareDestination()) {
+            Image(systemName: "pawprint.fill")
+                .foregroundStyle(DoggoColor.marigold)
+                .frame(width: 58, height: 58)
+                .background(DoggoColor.cardWhite, in: Circle())
+                .overlay(Circle().stroke(Color(hex: 0xF3E4CC), lineWidth: 1.5))
+        }
+        .buttonStyle(ScalePressButtonStyle())
+    }
+
     private var cameraPanel: some View {
         ZStack {
             Color.black
@@ -228,6 +244,8 @@ struct CollectionView: View {
 }
 
 struct ProfileDestination: Hashable {}
+struct CareDestination: Hashable {}
+struct MapDestination: Hashable {}
 
 #Preview {
     CollectionView()

@@ -18,40 +18,47 @@ struct CardDetailView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             DoggoColor.cream.ignoresSafeArea()
 
-            VStack(spacing: DoggoSpacing.lg) {
+            VStack(spacing: 0) {
                 topBar
+                    .padding(DoggoSpacing.lg)
 
-                DoggoCardView(
-                    image: dog.imageData.flatMap(UIImage.init),
-                    name: dog.name,
-                    breedLabel: dog.breedLabel,
-                    serialNumber: dog.serialNumber,
-                    traits: dog.traits,
-                    placeholderSeed: dog.id.hashValue
-                )
+                ScrollView {
+                    VStack(spacing: DoggoSpacing.lg) {
+                        DoggoCardView(
+                            image: dog.imageData.flatMap(UIImage.init),
+                            name: dog.name,
+                            breedLabel: dog.breedLabel,
+                            serialNumber: dog.serialNumber,
+                            traits: dog.traits,
+                            placeholderSeed: dog.id.hashValue
+                        )
 
-                Text("\(serialText) in your pack \u{00B7} caught at \(dog.locationLabel)")
-                    .font(DoggoTextStyle.caption)
-                    .foregroundStyle(DoggoColor.inkMuted)
+                        Text("\(serialText) in your pack \u{00B7} caught at \(dog.locationLabel)")
+                            .font(DoggoTextStyle.caption)
+                            .foregroundStyle(DoggoColor.inkMuted)
 
-                Button {
-                    renameText = dog.name
-                    showRename = true
-                } label: {
-                    Label("Rename", systemImage: "pencil")
-                        .font(DoggoTextStyle.caption)
-                        .foregroundStyle(DoggoColor.marigold)
+                        Button {
+                            renameText = dog.name
+                            showRename = true
+                        } label: {
+                            Label("Rename", systemImage: "pencil")
+                                .font(DoggoTextStyle.caption)
+                                .foregroundStyle(DoggoColor.marigold)
+                        }
+                        .buttonStyle(.plain)
+
+                        InsightPanelView(dog: dog)
+                    }
+                    .padding(.horizontal, DoggoSpacing.lg)
+                    .padding(.bottom, 100)
                 }
-                .buttonStyle(.plain)
+            }
 
-                Spacer()
-
-                PillButton(title: "Share this doggo", systemImage: "square.and.arrow.up") {
-                    showShare = true
-                }
+            PillButton(title: "Share this doggo", systemImage: "square.and.arrow.up") {
+                showShare = true
             }
             .padding(DoggoSpacing.lg)
         }
@@ -71,7 +78,9 @@ struct CardDetailView: View {
 
     private var topBar: some View {
         HStack {
-            circleButton("chevron.left", tint: DoggoColor.ink) { dismiss() }
+            circleButton("chevron.left", tint: DoggoColor.ink) {
+                dismiss()
+            }
             Spacer()
             circleButton(dog.isFavorite ? "heart.fill" : "heart", tint: DoggoColor.heartPink) {
                 dog.isFavorite.toggle()

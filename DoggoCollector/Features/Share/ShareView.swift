@@ -31,6 +31,9 @@ struct ShareView: View {
     @State private var renderedImage: UIImage?
     @State private var didCopyLink = false
     @State private var didSavePhoto = false
+    @State private var insight: DogInsight?
+
+    private let insightProvider: DogInsightProviding = MockDogInsightProvider()
 
     private var shareBackground: Color { Color(hex: 0x1C1712) }
 
@@ -75,6 +78,9 @@ struct ShareView: View {
         .background(shareBackground.ignoresSafeArea())
         .task(id: selectedColorway) {
             renderedImage = renderCard()
+        }
+        .task {
+            insight = await insightProvider.insight(for: dog)
         }
         .sheet(isPresented: $isActivitySheetPresented) {
             ActivityView(activityItems: shareItems)
@@ -148,6 +154,8 @@ struct ShareView: View {
                     .foregroundStyle(DoggoColor.inkMuted)
             }
 
+            metadataGrid
+
             HStack(spacing: DoggoSpacing.sm) {
                 Image(systemName: "pawprint.circle.fill")
                     .font(.system(size: 28))
@@ -165,6 +173,31 @@ struct ShareView: View {
         }
         .padding(DoggoSpacing.lg)
         .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+    }
+
+    private var metadataGrid: some View {
+        Grid(alignment: .leading, horizontalSpacing: DoggoSpacing.lg, verticalSpacing: DoggoSpacing.sm) {
+            GridRow {
+                metadataCell(label: "AGE", value: insight?.ageBracket.rawValue ?? "—")
+                metadataCell(label: "BREED · AI GUESS", value: insight?.breedGuess ?? "—")
+            }
+            GridRow {
+                metadataCell(label: "NEIGHBORHOOD", value: dog.locationLabel)
+                metadataCell(label: "FIRST SPOTTED", value: dog.caughtAt.formatted(date: .abbreviated, time: .omitted))
+            }
+        }
+    }
+
+    private func metadataCell(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(DoggoTextStyle.eyebrow)
+                .foregroundStyle(DoggoColor.metadataLabel)
+            Text(value)
+                .font(DoggoTextStyle.caption)
+                .foregroundStyle(DoggoColor.ink)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func textAction(_ title: String, action: @escaping () -> Void) -> some View {

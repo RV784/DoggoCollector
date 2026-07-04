@@ -17,18 +17,52 @@ enum ScoutExpression: Equatable {
     case happy
     /// Empty state — downturned mouth, drooping ears.
     case sad
+    /// Card Detail's "Scout's Sniff" loading state — head tilted, one ear
+    /// raised, sniff marks near the nose.
+    case curious
 }
 
 struct ScoutMascot: View {
     var expression: ScoutExpression = .idle
     var size: CGFloat = 140
 
+    @State private var curiousOscillate = false
+
     private var fur: Color { Color(hex: 0xCC9966) }
     private var furShade: Color { Color(hex: 0xB37D4B) }
     private var muzzle: Color { Color(hex: 0xFBEEDD) }
     private var earDroop: CGFloat { expression == .sad ? 0.08 : 0 }
 
+    /// Base -9° tilt for `.curious`, oscillating a further ±2° — the collar
+    /// stays level, so only the head group (not the whole mascot) rotates.
+    private var headTiltDegrees: Double {
+        guard expression == .curious else { return 0 }
+        return curiousOscillate ? -11 : -7
+    }
+
     var body: some View {
+        ZStack {
+            headGroup
+                .rotationEffect(.degrees(headTiltDegrees))
+                .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: curiousOscillate)
+
+            // Collar — deliberately outside headGroup so it stays level
+            // while the head tilts for `.curious`.
+            Capsule()
+                .fill(DoggoColor.marigold)
+                .frame(width: size * 0.62, height: size * 0.12)
+                .offset(y: size * 0.36)
+            Circle()
+                .fill(DoggoColor.marigoldDark)
+                .frame(width: size * 0.09, height: size * 0.09)
+                .offset(y: size * 0.42)
+        }
+        .frame(width: size, height: size)
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: expression)
+        .onAppear { curiousOscillate = true }
+    }
+
+    private var headGroup: some View {
         ZStack {
             // Ears
             ear(flipped: false)
@@ -58,25 +92,37 @@ struct ScoutMascot: View {
             // Eyes
             eyes
 
-            // Collar
-            Capsule()
-                .fill(DoggoColor.marigold)
-                .frame(width: size * 0.62, height: size * 0.12)
-                .offset(y: size * 0.36)
-            Circle()
-                .fill(DoggoColor.marigoldDark)
-                .frame(width: size * 0.09, height: size * 0.09)
-                .offset(y: size * 0.42)
+            if expression == .curious {
+                sniffMarks
+            }
         }
-        .frame(width: size, height: size)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: expression)
     }
 
     private func ear(flipped: Bool) -> some View {
         Ellipse()
             .fill(furShade)
             .frame(width: size * 0.28, height: size * 0.4)
-            .rotationEffect(.degrees(flipped ? 18 : -18))
+            .rotationEffect(.degrees(earRotationDegrees(flipped: flipped)))
+    }
+
+    /// Normally the ears splay symmetrically outward. For `.curious`, one
+    /// ear (the "flipped" one) stands up straighter than the other.
+    private func earRotationDegrees(flipped: Bool) -> Double {
+        if expression == .curious {
+            return flipped ? 4 : -18
+        }
+        return flipped ? 18 : -18
+    }
+
+    @ViewBuilder
+    private var sniffMarks: some View {
+        ForEach(0..<2, id: \.self) { i in
+            Capsule()
+                .stroke(Color(hex: 0x3A2620).opacity(0.6), lineWidth: size * 0.012)
+                .frame(width: size * 0.09, height: size * 0.02)
+                .rotationEffect(.degrees(-25))
+                .offset(x: size * (0.17 + Double(i) * 0.06), y: size * (0.02 - Double(i) * 0.035))
+        }
     }
 
     @ViewBuilder
@@ -107,7 +153,7 @@ struct ScoutMascot: View {
     @ViewBuilder
     private var mouth: some View {
         switch expression {
-        case .idle:
+        case .idle, .curious:
             Capsule()
                 .stroke(Color(hex: 0x3A2620), lineWidth: size * 0.015)
                 .frame(width: size * 0.16, height: size * 0.08)
@@ -158,6 +204,7 @@ extension View {
         ScoutMascot(expression: .idle)
         ScoutMascot(expression: .happy)
         ScoutMascot(expression: .sad)
+        ScoutMascot(expression: .curious)
     }
     .padding()
     .background(DoggoColor.cream)

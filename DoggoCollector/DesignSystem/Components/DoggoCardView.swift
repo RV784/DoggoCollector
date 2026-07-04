@@ -25,6 +25,7 @@ struct DoggoCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             photo
+                .allowsHitTesting(false)
                 .overlay(alignment: .topLeading) {
                     TagChip(text: breedLabel)
                         .padding(DoggoSpacing.sm)
@@ -76,6 +77,7 @@ struct DoggoCardView: View {
                 .scaledToFill()
                 .frame(height: isCompact ? 120 : 260)
                 .clipped()
+                .contentShape(Rectangle())
         } else {
             PolkaDotPlaceholder(seed: placeholderSeed)
                 .frame(height: isCompact ? 120 : 260)
