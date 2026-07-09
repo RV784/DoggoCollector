@@ -75,13 +75,8 @@ struct MapView: View {
                     Spacer()
                 }
 
-                Picker("Mode", selection: $mapMode) {
-                    ForEach(MapMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 240)
+                SegmentedTabs(options: MapMode.allCases.map { ($0, $0.rawValue) }, selection: $mapMode)
+                    .frame(maxWidth: 240)
 
                 if mapMode == .mine {
                     Text("Locations are rounded for privacy")

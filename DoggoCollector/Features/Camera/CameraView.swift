@@ -19,6 +19,7 @@ struct CameraView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = CameraViewModel()
     @State private var showMissBanner = false
+    @AppStorage("hasSeenCameraSafetyTip") private var hasSeenSafetyTip = false
 
     var body: some View {
         ZStack {
@@ -40,6 +41,15 @@ struct CameraView: View {
                 Spacer()
 
                 VStack(spacing: DoggoSpacing.md) {
+                    // Square (matches the app-wide square-photo standard —
+                    // the capture is center-cropped to a square, so what
+                    // this bracket frames is what the saved/displayed photo
+                    // actually keeps). Deliberately kept at its original
+                    // fixed size, not sized to the panel's width — the
+                    // panel's height is fixed/tuned for the pill→panel→card
+                    // morph, and a bigger bracket was found (via on-device
+                    // testing) to overflow that budget and push the shutter
+                    // button off-screen.
                     ViewfinderBracket()
                         .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                         .frame(width: 170, height: 170)
@@ -51,6 +61,10 @@ struct CameraView: View {
                 }
 
                 Spacer()
+
+                if !hasSeenSafetyTip {
+                    safetyTipCard
+                }
 
                 bottomBar
             }
@@ -94,6 +108,25 @@ struct CameraView: View {
             }
             .buttonStyle(ScalePressButtonStyle())
         }
+    }
+
+    private var safetyTipCard: some View {
+        HStack(alignment: .top, spacing: DoggoSpacing.sm) {
+            ScoutMascot(expression: .idle, size: 36)
+            VStack(alignment: .leading, spacing: DoggoSpacing.xs) {
+                Text("Don't corner a dog or rush up — let them come to you. And earn a mama dog's trust before saying hi to her pups.")
+                    .font(DoggoTextStyle.caption)
+                    .foregroundStyle(DoggoColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                TextLinkButton(title: "Got it") {
+                    withAnimation { hasSeenSafetyTip = true }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(DoggoSpacing.md)
+        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+        .transition(.opacity)
     }
 
     private var bottomBar: some View {

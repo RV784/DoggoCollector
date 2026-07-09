@@ -17,6 +17,10 @@ struct DoggoCardView: View {
     var traits: [String] = []
     var isCompact: Bool = false
     var placeholderSeed: Int = 0
+    /// Guardian Mode only — small marigold "GUARDIAN" corner tag, mirroring
+    /// the breed chip on the opposite corner. Kept small so it never
+    /// competes with the photo.
+    var showsGuardianTag: Bool = false
 
     private var serialText: String {
         "#" + String(format: "%03d", serialNumber)
@@ -27,8 +31,25 @@ struct DoggoCardView: View {
             photo
                 .allowsHitTesting(false)
                 .overlay(alignment: .topLeading) {
-                    TagChip(text: breedLabel)
-                        .padding(DoggoSpacing.sm)
+                    // In compact mode the breed already repeats as caption
+                    // text below, so when the Guardian tag needs the
+                    // opposite corner, drop this one rather than collide —
+                    // the narrow grid tile isn't wide enough for both.
+                    if !(isCompact && showsGuardianTag) {
+                        TagChip(text: breedLabel)
+                            .padding(DoggoSpacing.sm)
+                    }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if showsGuardianTag {
+                        Text("GUARDIAN")
+                            .font(DoggoTextStyle.eyebrow)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, DoggoSpacing.sm)
+                            .padding(.vertical, DoggoSpacing.xs)
+                            .background(DoggoColor.marigold, in: Capsule())
+                            .padding(DoggoSpacing.sm)
+                    }
                 }
                 .overlay(alignment: .bottomLeading) {
                     if !isCompact {
@@ -69,19 +90,26 @@ struct DoggoCardView: View {
         .shadow(color: .black.opacity(0.08), radius: 12, y: 6)
     }
 
+    /// Square, matching the camera's square viewfinder — every caught dog's
+    /// photo is framed 1:1 everywhere it's shown, so what you captured is
+    /// what you see on every card, not a different crop per screen. Sized
+    /// off whatever width the parent gives (grid tile vs. full card), not a
+    /// fixed pixel height, so it stays square at any size.
     @ViewBuilder
     private var photo: some View {
-        if let image {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(height: isCompact ? 120 : 260)
-                .clipped()
-                .contentShape(Rectangle())
-        } else {
-            PolkaDotPlaceholder(seed: placeholderSeed)
-                .frame(height: isCompact ? 120 : 260)
-        }
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    PolkaDotPlaceholder(seed: placeholderSeed)
+                }
+            }
+            .clipped()
+            .contentShape(Rectangle())
     }
 }
 

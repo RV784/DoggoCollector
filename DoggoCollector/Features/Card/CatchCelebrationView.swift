@@ -55,6 +55,15 @@ struct CatchCelebrationView: View {
                             }
                         }
                         .buttonStyle(.plain)
+
+                        HStack(spacing: DoggoSpacing.xs) {
+                            Image(systemName: "tag.fill")
+                            Text("Spot a collar? This might be someone's pet \u{2014} help them find their way home.")
+                        }
+                        .font(DoggoTextStyle.caption)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, DoggoSpacing.xxl)
                     }
                     .transition(.opacity)
 

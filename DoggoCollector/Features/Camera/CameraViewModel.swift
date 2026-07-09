@@ -73,11 +73,15 @@ final class CameraViewModel {
         let generated = CatchNameGenerator.generate()
         let serialCount = (try? modelContext.fetchCount(FetchDescriptor<CaughtDog>())) ?? 0
 
+        // Cropped to a square here, once, at the source — matching the
+        // camera's square viewfinder — so every downstream display of a
+        // caught dog's photo (grid cards, card detail, share, wards list)
+        // is already consistent instead of each screen picking its own crop.
         let dog = CaughtDog(
             name: generated.name,
             breedLabel: generated.breedLabel,
             traits: generated.traits,
-            imageData: finalImage.jpegData(compressionQuality: 0.85),
+            imageData: finalImage.croppedToSquare().jpegData(compressionQuality: 0.85),
             locationLabel: coarse.label,
             latitude: coarse.latitude,
             longitude: coarse.longitude,
@@ -99,5 +103,19 @@ final class CameraViewModel {
         #else
         return nil
         #endif
+    }
+}
+
+private extension UIImage {
+    /// Center-crops to a square. `UIGraphicsImageRenderer` + `draw(at:)`
+    /// (rather than slicing the underlying `CGImage` directly) so the
+    /// image's own `imageOrientation` is respected automatically.
+    func croppedToSquare() -> UIImage {
+        let side = min(size.width, size.height)
+        let origin = CGPoint(x: (side - size.width) / 2, y: (side - size.height) / 2)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side))
+        return renderer.image { _ in
+            draw(at: origin)
+        }
     }
 }

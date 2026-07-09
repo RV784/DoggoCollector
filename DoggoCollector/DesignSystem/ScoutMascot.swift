@@ -25,6 +25,10 @@ enum ScoutExpression: Equatable {
 struct ScoutMascot: View {
     var expression: ScoutExpression = .idle
     var size: CGFloat = 140
+    /// Guardian Mode only — a small medal at the collar line. Drawn in the
+    /// same layer as the collar (outside `headGroup`) so it stays level when
+    /// the head tilts for `.curious`, same reasoning as the collar itself.
+    var wearsGuardianMedal: Bool = false
 
     @State private var curiousOscillate = false
 
@@ -46,20 +50,38 @@ struct ScoutMascot: View {
                 .rotationEffect(.degrees(headTiltDegrees))
                 .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: curiousOscillate)
 
-            // Collar — deliberately outside headGroup so it stays level
-            // while the head tilts for `.curious`.
-            Capsule()
-                .fill(DoggoColor.marigold)
-                .frame(width: size * 0.62, height: size * 0.12)
-                .offset(y: size * 0.36)
-            Circle()
-                .fill(DoggoColor.marigoldDark)
-                .frame(width: size * 0.09, height: size * 0.09)
-                .offset(y: size * 0.42)
+            // Collar / ribbon — deliberately outside headGroup so it stays
+            // level while the head tilts for `.curious`. Guardian mode swaps
+            // the plain collar for a diagonal "GUARDIAN" ribbon entirely,
+            // matching the design prototype (not a small badge alongside it).
+            if wearsGuardianMedal {
+                guardianRibbon
+            } else {
+                Capsule()
+                    .fill(DoggoColor.marigold)
+                    .frame(width: size * 0.62, height: size * 0.12)
+                    .offset(y: size * 0.36)
+                Circle()
+                    .fill(DoggoColor.marigoldDark)
+                    .frame(width: size * 0.09, height: size * 0.09)
+                    .offset(y: size * 0.42)
+            }
         }
         .frame(width: size, height: size)
         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: expression)
         .onAppear { curiousOscillate = true }
+    }
+
+    /// Diagonal marigold sash across the collar line, reading "GUARDIAN" —
+    /// matches the design prototype exactly (a ribbon, not a small badge).
+    private var guardianRibbon: some View {
+        Text("GUARDIAN")
+            .font(.system(size: size * 0.09, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(width: size * 0.9, height: size * 0.16)
+            .background(DoggoColor.marigold)
+            .rotationEffect(.degrees(-16))
+            .offset(y: size * 0.34)
     }
 
     private var headGroup: some View {

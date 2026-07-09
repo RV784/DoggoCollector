@@ -14,7 +14,7 @@ import SwiftUI
 struct InsightPanelView: View {
     let dog: CaughtDog
 
-    private let insightProvider: DogInsightProviding = MockDogInsightProvider()
+    private let insightProvider: DogInsightProviding = FoundationModelsInsightProvider()
 
     @State private var insight: DogInsight?
     @State private var showBreedInfo = false
@@ -151,8 +151,9 @@ struct InsightPanelView: View {
 
 /// Loading indicator for "Scout's having a sniff…" — three dots bouncing
 /// with a staggered delay, same technique as AmbientBackgroundShapes. Not a
-/// spinner, per the design brief.
-private struct BouncingDotsView: View {
+/// spinner, per the design brief. Internal (not private) so CareView's
+/// live-search loading state can reuse it too.
+struct BouncingDotsView: View {
     @State private var bounce = false
 
     var body: some View {

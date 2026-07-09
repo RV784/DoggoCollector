@@ -33,7 +33,7 @@ struct ShareView: View {
     @State private var didSavePhoto = false
     @State private var insight: DogInsight?
 
-    private let insightProvider: DogInsightProviding = MockDogInsightProvider()
+    private let insightProvider: DogInsightProviding = FoundationModelsInsightProvider()
 
     private var shareBackground: Color { Color(hex: 0x1C1712) }
 
@@ -131,7 +131,6 @@ struct ShareView: View {
             isCompact: true,
             placeholderSeed: dog.id.hashValue
         )
-        .frame(height: 260)
         .padding(DoggoSpacing.sm)
         .overlay(
             RoundedRectangle(cornerRadius: DoggoRadius.card + 6)
@@ -218,7 +217,9 @@ struct ShareView: View {
     }
 
     private func renderCard() -> UIImage? {
-        CardRenderer.renderImage(cardPreview, size: CGSize(width: 340, height: 300))
+        // Height grew once the photo became square (matching the camera
+        // viewfinder) instead of the old fixed-260 landscape crop.
+        CardRenderer.renderImage(cardPreview, size: CGSize(width: 340, height: 420))
     }
 
     private func shareToInstagramStory() {

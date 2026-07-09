@@ -22,16 +22,23 @@ enum CareCategory: CaseIterable, Hashable {
 }
 
 struct CarePlace: Identifiable {
-    let id = UUID()
+    /// Provider-supplied stable identity — `MKMapItem.identifier` when
+    /// available, else a derived key (see `LiveCareDirectory`). Not a fresh
+    /// `UUID()` per instantiation, so the same real-world place keeps its
+    /// identity across re-searches (e.g. dedupe across merged shelter
+    /// queries, or `.sheet(item:)` re-presenting the same row).
+    let id: String
     let name: String
     let category: CareCategory
     let distanceMeters: Double
-    let isOpenNow: Bool
-    let is24Hour: Bool
     let address: String
     let phoneNumber: String?
+    /// Real `MKMapItem.url`, when present — shelters/NGOs surface this more
+    /// often than vets do.
+    let websiteURL: URL?
     /// Shelters/NGOs only — vet rows don't show this (per brief, vets vary
-    /// little; shelters vary org-to-org).
+    /// little; shelters vary org-to-org). Always nil from live search; kept
+    /// for the model's shape and mock/preview content.
     let description: String?
     let coordinate: CLLocationCoordinate2D
 

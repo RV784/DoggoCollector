@@ -15,6 +15,10 @@ private enum SurfaceState {
     case celebration
 }
 
+private enum PackTab: Hashable {
+    case all, wards
+}
+
 struct CollectionView: View {
     @Environment(UsernameAuthProvider.self) private var authProvider
     @Query(sort: \CaughtDog.caughtAt, order: .reverse) private var catches: [CaughtDog]
@@ -22,6 +26,9 @@ struct CollectionView: View {
     @Namespace private var morphNamespace
     @State private var surfaceState: SurfaceState = .idle
     @State private var caughtDog: CaughtDog?
+    @State private var packTab: PackTab = .all
+
+    private var hasWards: Bool { catches.contains { $0.isWard } }
 
     private let mechanic = PackCollectorMechanic()
     private let columns = [
@@ -42,6 +49,9 @@ struct CollectionView: View {
                     VStack(alignment: .leading, spacing: DoggoSpacing.xl) {
                         header
                         statsRow
+                        if hasWards {
+                            packTabPicker
+                        }
                         content
                     }
                     .padding(DoggoSpacing.lg)
@@ -107,6 +117,7 @@ struct CollectionView: View {
             .navigationDestination(for: ProfileDestination.self) { _ in ProfileView() }
             .navigationDestination(for: CareDestination.self) { _ in CareView() }
             .navigationDestination(for: MapDestination.self) { _ in MapView() }
+            .navigationDestination(for: PastWardsDestination.self) { _ in PastWardsView() }
         }
     }
 
@@ -138,11 +149,17 @@ struct CollectionView: View {
         }
     }
 
+    private var packTabPicker: some View {
+        SegmentedTabs(options: [(.all, "All Catches"), (.wards, "Guardian Wards")], selection: $packTab)
+    }
+
     @ViewBuilder
     private var content: some View {
         if catches.isEmpty {
             EmptyStateView()
                 .padding(.top, DoggoSpacing.xxl)
+        } else if hasWards && packTab == .wards {
+            WardsListView(catches: catches)
         } else {
             LazyVGrid(columns: columns, spacing: DoggoSpacing.md) {
                 ForEach(catches) { dog in
@@ -153,7 +170,8 @@ struct CollectionView: View {
                             breedLabel: dog.breedLabel,
                             serialNumber: dog.serialNumber,
                             isCompact: true,
-                            placeholderSeed: dog.id.hashValue
+                            placeholderSeed: dog.id.hashValue,
+                            showsGuardianTag: dog.isActiveWard
                         )
                     }
                     .buttonStyle(.plain)
@@ -246,6 +264,7 @@ struct CollectionView: View {
 struct ProfileDestination: Hashable {}
 struct CareDestination: Hashable {}
 struct MapDestination: Hashable {}
+struct PastWardsDestination: Hashable {}
 
 #Preview {
     CollectionView()

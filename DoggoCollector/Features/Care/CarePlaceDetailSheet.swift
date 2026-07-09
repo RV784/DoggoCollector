@@ -7,6 +7,7 @@
 
 import SwiftUI
 import MapKit
+import CoreLocation
 
 struct CarePlaceDetailSheet: View {
     let place: CarePlace
@@ -17,18 +18,7 @@ struct CarePlaceDetailSheet: View {
                 Text(place.name)
                     .font(DoggoTextStyle.displayMedium)
                     .foregroundStyle(DoggoColor.ink)
-                HStack(spacing: DoggoSpacing.sm) {
-                    if place.category == .vet {
-                        TagChip(text: place.isOpenNow ? "Open now" : "Closed", prominent: place.isOpenNow)
-                    }
-                    Text(place.distanceText)
-                        .font(DoggoTextStyle.caption)
-                        .foregroundStyle(DoggoColor.inkMuted)
-                }
-            }
-
-            if place.category == .vet, place.is24Hour {
-                Label("Open 24 hours", systemImage: "clock.fill")
+                Text(place.distanceText)
                     .font(DoggoTextStyle.caption)
                     .foregroundStyle(DoggoColor.inkMuted)
             }
@@ -42,6 +32,12 @@ struct CarePlaceDetailSheet: View {
             Label(place.address, systemImage: "mappin.and.ellipse")
                 .font(DoggoTextStyle.bodyRegular)
                 .foregroundStyle(DoggoColor.inkMuted)
+
+            if let websiteURL = place.websiteURL {
+                TextLinkButton(title: "Visit website") {
+                    UIApplication.shared.open(websiteURL)
+                }
+            }
 
             HStack(spacing: DoggoSpacing.md) {
                 if let phoneNumber = place.phoneNumber {
@@ -57,7 +53,7 @@ struct CarePlaceDetailSheet: View {
         .padding(DoggoSpacing.xl)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(DoggoColor.cream.ignoresSafeArea())
-        .presentationDetents([.medium])
+        .presentationDetents([.height(300)])
         .presentationDragIndicator(.visible)
     }
 
@@ -68,7 +64,8 @@ struct CarePlaceDetailSheet: View {
     }
 
     private func openInMaps() {
-        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: place.coordinate))
+        let location = CLLocation(latitude: place.coordinate.latitude, longitude: place.coordinate.longitude)
+        let mapItem = MKMapItem(location: location, address: nil)
         mapItem.name = place.name
         mapItem.openInMaps()
     }
