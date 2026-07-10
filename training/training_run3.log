@@ -1,0 +1,39 @@
+[train_breed_classifier] Stage 1/7: disk check
+[train_breed_classifier]   62.7 GB free — proceeding.
+[train_breed_classifier] Stage 2/7: download Stanford Dogs images.tar
+[train_breed_classifier]   prepared/train already exists — skipping download+extract entirely.
+[train_breed_classifier] Stage 3/7: extract
+[train_breed_classifier]   prepared/train already exists — skipping extract.
+[train_breed_classifier]   deleting tar (disk constraint)...
+[train_breed_classifier] Stage 4/7: prepare (clean labels + 80/20 split)
+[train_breed_classifier]   prepared/ already exists — skipping split.
+[train_breed_classifier]   ⚠️  mixed_or_uncertain/ train folder is empty — training a 120-class model.
+[train_breed_classifier]       To train a 121-class model later: mkdir -p /Users/rajatverma/Work/DoggoCollector/training/data/prepared/train/mixed_or_uncertain and
+[train_breed_classifier]       /Users/rajatverma/Work/DoggoCollector/training/data/prepared/test/mixed_or_uncertain, drop street-dog photos into each (roughly 80/20),
+[train_breed_classifier]       delete BreedClassifier.mlpackage, and re-run this script.
+[train_breed_classifier] Stage 5/7: train
+[train_breed_classifier]   training MLImageClassifier (this can take tens of minutes)...
+Swift/ErrorType.swift:254: Fatal error: Error raised at top level: Vision.VisionError.internalError("Failed to create CVPixelBufferPool.")
+Stack dump:
+0.	Program arguments: /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -interpret train_breed_classifier.swift -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -no-color-diagnostics -Xcc -fno-color-diagnostics -new-driver-path /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-driver -empty-abi-descriptor -no-auto-bridging-header-chaining -module-name train_breed_classifier -disable-clang-spi -target-sdk-version 27.0 -target-sdk-name macosx27.0 -external-plugin-path /Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins#/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/local/lib/swift/host/plugins#/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server -in-process-plugin-server-path /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -plugin-path /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins -plugin-path /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/lib/swift/host/plugins
+1.	Apple Swift version 6.4 (swiftlang-6.4.0.25.4 clang-2100.3.25.1)
+2.	Compiling with effective version 5.10
+3.	While running user code "train_breed_classifier.swift"
+Stack dump without symbol names (ensure you have llvm-symbolizer in your PATH or set the environment var `LLVM_SYMBOLIZER_PATH` to point to it):
+0  swift-frontend           0x0000000108df9064 llvm::sys::PrintStackTrace(llvm::raw_ostream&, int) + 56
+1  swift-frontend           0x0000000108df67ec llvm::sys::RunSignalHandlers() + 172
+2  swift-frontend           0x0000000108df965c SignalHandler(int, __siginfo*, void*) + 360
+3  libsystem_platform.dylib 0x000000019456d184 _sigtramp + 56
+4  libswiftCore.dylib       0x00000001a929fca8 $ss17_assertionFailure__4file4line5flagss5NeverOs12StaticStringV_SSAHSus6UInt32VtF + 216
+5  libswiftCore.dylib       0x00000001a917f110 swift_errorInMain + 632
+6  (error)                  0x000000011abb4208
+7  swift-frontend           0x0000000102a9ac24 llvm::orc::runAsMain(int (*)(int, char**), llvm::ArrayRef<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>, std::__1::optional<llvm::StringRef>) + 908
+8  swift-frontend           0x00000001029a2f70 swift::SwiftJIT::runMain(llvm::ArrayRef<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>) + 636
+9  swift-frontend           0x00000001029af2dc swift::RunImmediately(swift::CompilerInstance&, std::__1::vector<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>, std::__1::allocator<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>> const&, swift::IRGenOptions const&, swift::SILOptions const&, std::__1::unique_ptr<swift::SILModule, std::__1::default_delete<swift::SILModule>>&&) + 964
+10 swift-frontend           0x000000010292164c processCommandLineAndRunImmediately(swift::CompilerInstance&, std::__1::unique_ptr<swift::SILModule, std::__1::default_delete<swift::SILModule>>&&, llvm::PointerUnion<swift::ModuleDecl*, swift::SourceFile*>, swift::FrontendObserver*, int&) + 484
+11 swift-frontend           0x000000010291a668 performCompileStepsPostSILGen(swift::CompilerInstance&, std::__1::unique_ptr<swift::SILModule, std::__1::default_delete<swift::SILModule>>, llvm::PointerUnion<swift::ModuleDecl*, swift::SourceFile*>, swift::PrimarySpecificPaths const&, int&, swift::FrontendObserver*, llvm::ArrayRef<char const*>, llvm::ArrayRef<swift::PrimarySpecificPaths>) + 2408
+12 swift-frontend           0x00000001029198a0 swift::performCompileStepsPostSema(swift::CompilerInstance&, int&, swift::FrontendObserver*, llvm::ArrayRef<char const*>) + 3944
+13 swift-frontend           0x000000010291f268 performCompile(swift::CompilerInstance&, int&, swift::FrontendObserver*, llvm::ArrayRef<char const*>) + 4268
+14 swift-frontend           0x000000010291b894 swift::performFrontend(llvm::ArrayRef<char const*>, char const*, void*, swift::FrontendObserver*) + 3776
+15 swift-frontend           0x000000010289aafc swift::mainEntry(int, char const**) + 5600
+16 dyld                     0x000000019418ba24 start + 6688

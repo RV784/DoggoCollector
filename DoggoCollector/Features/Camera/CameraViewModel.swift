@@ -13,6 +13,7 @@ final class CameraViewModel {
 
     let cameraService = CameraService()
     private let dogDetector: SubjectDetecting = DogDetector()
+    private let breedClassifier: BreedClassifying = CoreMLBreedClassifier()
     private let whistlePlayer = WhistlePlayer()
     private let locationProvider = LocationProvider()
     private let locationTagger = LocationTagger()
@@ -62,6 +63,20 @@ final class CameraViewModel {
             return nil
         }
 
+        // Runs on the Simulator placeholder too, not just real photos.
+        // Verified live (macOS smoke test, not just assumed): a solid-color
+        // placeholder does NOT reliably come back low-confidence — an
+        // image classifier trained only on real dog photos has no "not a
+        // dog" class to fall back to, so it confidently (>95%) picks
+        // *some* breed for an out-of-distribution flat-color input. This
+        // is a Simulator-testing-only quirk (a placeholder catch may show
+        // an oddly specific, meaningless breed rather than "Indie mix"),
+        // not a bug — real device photos classify sensibly either way.
+        var breed: BreedResult?
+        if let cgImage = finalImage.cgImage {
+            breed = await breedClassifier.classify(cgImage)
+        }
+
         let location = await locationProvider.currentLocation()
         let coarse: CoarseLocation
         if let location {
@@ -79,7 +94,10 @@ final class CameraViewModel {
         // is already consistent instead of each screen picking its own crop.
         let dog = CaughtDog(
             name: generated.name,
-            breedLabel: generated.breedLabel,
+            // Classifier fallback is the old whimsical label — graceful
+            // degradation matching the project's mock-fallback pattern,
+            // e.g. if the model is missing or Vision throws.
+            breedLabel: breed?.displayName ?? generated.breedLabel,
             traits: generated.traits,
             imageData: finalImage.croppedToSquare().jpegData(compressionQuality: 0.85),
             locationLabel: coarse.label,
@@ -87,6 +105,8 @@ final class CameraViewModel {
             longitude: coarse.longitude,
             serialNumber: serialCount + 1
         )
+        dog.classifiedBreedRaw = breed?.breedName
+        dog.breedConfidence = breed?.confidence
         modelContext.insert(dog)
         try? modelContext.save()
         lastCatchFailed = false

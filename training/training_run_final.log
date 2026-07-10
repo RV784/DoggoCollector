@@ -1,0 +1,25 @@
+[train_breed_classifier] Stage 1/7: disk check
+[train_breed_classifier]   62.7 GB free — proceeding.
+[train_breed_classifier] Stage 2/7: download Stanford Dogs images.tar
+[train_breed_classifier]   prepared/train already exists — skipping download+extract entirely.
+[train_breed_classifier] Stage 3/7: extract
+[train_breed_classifier]   prepared/train already exists — skipping extract.
+[train_breed_classifier] Stage 4/7: prepare (clean labels + 80/20 split)
+[train_breed_classifier]   prepared/ already exists — skipping split.
+[train_breed_classifier] Capping each class at 48 train / 12 test images (see comment above)...
+[train_breed_classifier]   ⚠️  mixed_or_uncertain/ train folder is empty — training a 120-class model.
+[train_breed_classifier]       To train a 121-class model later: mkdir -p /Users/rajatverma/Work/DoggoCollector/training/data/prepared/train/mixed_or_uncertain and
+[train_breed_classifier]       /Users/rajatverma/Work/DoggoCollector/training/data/prepared/test/mixed_or_uncertain, drop street-dog photos into each (roughly 80/20),
+[train_breed_classifier]       delete BreedClassifier.mlpackage, and re-run this script.
+[train_breed_classifier] Stage 5/7: train
+[train_breed_classifier]   training MLImageClassifier (this can take tens of minutes)...
+[train_breed_classifier]   training complete.
+[train_breed_classifier] Stage 6/7: evaluate on held-out test set
+[train_breed_classifier]   test accuracy: 55.00%
+[train_breed_classifier]   training accuracy: 95.34%
+[train_breed_classifier]   validation accuracy: 52.92%
+[train_breed_classifier]   report written to /Users/rajatverma/Work/DoggoCollector/training/report.md
+[train_breed_classifier] Stage 7/7: export .mlpackage
+Expected filetype .mlmodel for saving the model, appending that to file name.
+[train_breed_classifier]   exported to /Users/rajatverma/Work/DoggoCollector/DoggoCollector/Core/Detection/BreedClassifier.mlpackage
+[train_breed_classifier] Done. Report the accuracy numbers above to the user — they judge sufficiency.

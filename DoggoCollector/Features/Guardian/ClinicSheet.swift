@@ -55,7 +55,7 @@ struct ClinicSheet: View {
         .padding(DoggoSpacing.xl)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(DoggoColor.cream.ignoresSafeArea())
-        .presentationDetents([.medium])
+        .presentationDetents([.height(300)])
         .presentationDragIndicator(.visible)
     }
 

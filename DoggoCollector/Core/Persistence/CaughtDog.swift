@@ -41,6 +41,14 @@ final class CaughtDog {
     @Relationship(deleteRule: .cascade, inverse: \CareEntry.dog)
     var careEntries: [CareEntry]? = []
 
+    // Breed classification — literal defaults for the same lightweight-
+    // migration reason as the Guardian fields above.
+    /// Raw class label from CoreMLBreedClassifier, including
+    /// "mixed_or_uncertain" — nil means never classified yet (pre-existing
+    /// catches get a lazy backfill the first time their card is opened).
+    var classifiedBreedRaw: String? = nil
+    var breedConfidence: Double? = nil
+
     var wardStatus: WardStatus {
         get { WardStatus(rawValue: wardStatusRaw) ?? .active }
         set { wardStatusRaw = newValue.rawValue }
@@ -52,6 +60,20 @@ final class CaughtDog {
     }
 
     var isActiveWard: Bool { isWard && wardStatus == .active }
+
+    /// True only once a real classification exists above threshold — the
+    /// threshold itself was already applied at classification time
+    /// (CoreMLBreedClassifier), so this is just "did we get a specific
+    /// breed, not mixed_or_uncertain."
+    var isBreedConfident: Bool {
+        guard let classifiedBreedRaw else { return false }
+        return classifiedBreedRaw != "mixed_or_uncertain"
+    }
+
+    var classifiedDisplayBreed: String? {
+        guard let classifiedBreedRaw else { return nil }
+        return classifiedBreedRaw == "mixed_or_uncertain" ? "Indie mix" : classifiedBreedRaw
+    }
 
     var sortedCareEntries: [CareEntry] {
         (careEntries ?? []).sorted { $0.timestamp > $1.timestamp }
