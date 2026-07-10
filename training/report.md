@@ -1,26 +1,28 @@
-# Breed Classifier Training Report
+# Breed Classifier Training Report (full dataset, via CreateMLComponents)
 
-Date: 2026-07-10 10:25:28 +0000
+Date: 2026-07-10 14:17:38 +0000
 Class count: 120
+Train samples: 16418
+Test samples: 4162
+Pipeline: CreateMLComponents.ImageFeaturePrint -> LogisticRegressionClassifier (features extracted one image at a time to work around the CVPixelBufferPool crash in MLImageClassifier's bulk extraction — see CLAUDE.md Known Issue #16)
 
 ## Accuracy
-- Training: 95.34%
-- Validation: 52.92%
-- Test (held-out): 55.00%
+- Training: 80.10%
+- Test (held-out): 67.04%
 
-## 15 worst confusion pairs (true → predicted, count)
-- Lhasa → Shih Tzu: 6
-- Miniature Poodle → Toy Poodle: 6
-- Standard Schnauzer → Miniature Schnauzer: 5
-- Bloodhound → Rhodesian Ridgeback: 4
-- German Shepherd → Norwegian Elkhound: 4
-- Staffordshire Bullterrier → American Staffordshire Terrier: 4
-- Yorkshire Terrier → Silky Terrier: 4
-- Airedale → Lakeland Terrier: 3
-- Appenzeller → Bernese Mountain Dog: 3
-- Basset → Bloodhound: 3
-- Bedlington Terrier → Miniature Poodle: 3
-- Border Collie → Collie: 3
-- Borzoi → Kuvasz: 3
-- Brittany Spaniel → Welsh Springer Spaniel: 3
-- Bull Mastiff → Boxer: 3
+## 15 worst confusion pairs (true -> predicted, count)
+- Eskimo Dog -> Siberian Husky: 14
+- Toy Poodle -> Miniature Poodle: 12
+- Standard Schnauzer -> Miniature Schnauzer: 12
+- Irish Wolfhound -> Scottish Deerhound: 11
+- English Foxhound -> Walker Hound: 11
+- Shetland Sheepdog -> Collie: 10
+- Staffordshire Bullterrier -> American Staffordshire Terrier: 9
+- Scottish Deerhound -> Irish Wolfhound: 8
+- Siberian Husky -> Eskimo Dog: 8
+- Lhasa -> Shih Tzu: 8
+- Miniature Schnauzer -> Standard Schnauzer: 8
+- Miniature Poodle -> Toy Poodle: 8
+- Miniature Poodle -> Standard Poodle: 8
+- Collie -> Shetland Sheepdog: 8
+- Shih Tzu -> Lhasa: 7

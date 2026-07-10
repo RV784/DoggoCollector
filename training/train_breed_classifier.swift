@@ -215,45 +215,6 @@ if fileManager.fileExists(atPath: preparedTrainDir.path) {
     log("  split complete.")
 }
 
-// MARK: - Per-class cap (environment-specific deviation from the plan)
-//
-// The plan called for training on the full Stanford Dogs set (~16.4k train
-// images). On this Mac, MLImageClassifier's scenePrint feature extraction
-// reliably throws `Vision.VisionError.internalError("Failed to create
-// CVPixelBufferPool.")` somewhere between 7,200 and 12,000 images — bisected
-// live (2,400 and 7,200 images both trained fine; 12,000 failed the same
-// way, three full-dataset attempts failed identically). Root cause not
-// pinned down further (not class-count-related — 120 classes at low
-// per-class counts works fine — looks like a GPU/Vision resource ceiling
-// for this session, not obviously fixable from user code). Capping each
-// class at a size confirmed to work is the practical fix; not a limitation
-// of the resulting model's usefulness — 60 images/class is a respectable
-// per-class sample for a scenePrint-backed classifier head.
-let maxTrainPerClass = 48  // ~60/class * 0.8
-let maxTestPerClass = 12   // ~60/class * 0.2
-
-func capImages(in dir: URL, maxCount: Int) {
-    guard let files = try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
-        .filter({ ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) })
-        .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }),
-        files.count > maxCount else { return }
-    for file in files[maxCount...] {
-        try? fileManager.removeItem(at: file)
-    }
-}
-
-log("Capping each class at \(maxTrainPerClass) train / \(maxTestPerClass) test images (see comment above)...")
-if let trainClassDirs = try? fileManager.contentsOfDirectory(at: preparedTrainDir, includingPropertiesForKeys: nil) {
-    for classDir in trainClassDirs where classDir.lastPathComponent != "mixed_or_uncertain" {
-        capImages(in: classDir, maxCount: maxTrainPerClass)
-    }
-}
-if let testClassDirs = try? fileManager.contentsOfDirectory(at: preparedTestDir, includingPropertiesForKeys: nil) {
-    for classDir in testClassDirs where classDir.lastPathComponent != "mixed_or_uncertain" {
-        capImages(in: classDir, maxCount: maxTestPerClass)
-    }
-}
-
 let mixedTrainCount = (try? fileManager.contentsOfDirectory(atPath: mixedTrainDir.path).count) ?? 0
 if mixedTrainCount == 0 {
     log("  ⚠️  mixed_or_uncertain/ train folder is empty — training a 120-class model.")
