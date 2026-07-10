@@ -64,34 +64,36 @@ struct MapView: View {
             }
             .ignoresSafeArea()
 
-            VStack(spacing: DoggoSpacing.sm) {
-                HStack {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .foregroundStyle(DoggoColor.ink)
-                            .frame(width: 44, height: 44)
-                            .background(DoggoColor.cardWhite, in: Circle())
+            GlassEffectContainer {
+                VStack(spacing: DoggoSpacing.sm) {
+                    HStack {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "chevron.left")
+                                .foregroundStyle(DoggoColor.ink)
+                                .glassCircleChrome(size: 44)
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
                     }
-                    Spacer()
-                }
 
-                SegmentedTabs(options: MapMode.allCases.map { ($0, $0.rawValue) }, selection: $mapMode)
-                    .frame(maxWidth: 240)
+                    SegmentedTabs(options: MapMode.allCases.map { ($0, $0.rawValue) }, selection: $mapMode)
+                        .frame(maxWidth: 240)
 
-                if mapMode == .mine {
-                    Text("Locations are rounded for privacy")
-                        .font(DoggoTextStyle.caption)
-                        .foregroundStyle(DoggoColor.inkMuted)
-                        .padding(.horizontal, DoggoSpacing.md)
-                        .padding(.vertical, DoggoSpacing.xs)
-                        .background(DoggoColor.cardWhite, in: Capsule())
-                } else {
-                    Text("Community total · individual spots stay private")
-                        .font(DoggoTextStyle.caption)
-                        .foregroundStyle(DoggoColor.inkMuted)
-                        .padding(.horizontal, DoggoSpacing.md)
-                        .padding(.vertical, DoggoSpacing.xs)
-                        .background(DoggoColor.cardWhite, in: Capsule())
+                    if mapMode == .mine {
+                        Text("Locations are rounded for privacy")
+                            .font(DoggoTextStyle.caption)
+                            .foregroundStyle(DoggoColor.inkOffWhite)
+                            .padding(.horizontal, DoggoSpacing.md)
+                            .padding(.vertical, DoggoSpacing.xs)
+                            .glassEffect(.regular, in: .capsule)
+                    } else {
+                        Text("Community total · individual spots stay private")
+                            .font(DoggoTextStyle.caption)
+                            .foregroundStyle(DoggoColor.inkOffWhite)
+                            .padding(.horizontal, DoggoSpacing.md)
+                            .padding(.vertical, DoggoSpacing.xs)
+                            .glassEffect(.regular, in: .capsule)
+                    }
                 }
             }
             .padding(DoggoSpacing.lg)
@@ -101,7 +103,17 @@ struct MapView: View {
             youLocation = await locationProvider.currentLocation()?.coordinate
         }
         .sheet(item: $selectedDog) { dog in
-            CardDetailView(dog: dog)
+            // Wrapped in its own stack — CardDetailView's toolbar (native
+            // nav bar) needs a NavigationStack ancestor to render at all,
+            // and this sheet doesn't share Collection's outer stack. The
+            // two destinations below mirror the subset of Collection's
+            // registrations reachable from within Card Detail here
+            // ("Find nearby care" → Care → its own Profile button).
+            NavigationStack {
+                CardDetailView(dog: dog)
+                    .navigationDestination(for: CareDestination.self) { _ in CareView() }
+                    .navigationDestination(for: ProfileDestination.self) { _ in ProfileView() }
+            }
         }
         .popover(item: $selectedLocality) { locality in
             localityPopover(locality)

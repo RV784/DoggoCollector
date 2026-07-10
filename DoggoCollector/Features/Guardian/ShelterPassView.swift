@@ -44,8 +44,7 @@ struct ShelterPassView: View {
             } label: {
                 Image(systemName: "xmark")
                     .foregroundStyle(DoggoColor.ink)
-                    .frame(width: 36, height: 36)
-                    .background(Color(hex: 0xF1EBE0), in: Circle())
+                    .glassCircleChrome(size: 36)
             }
         }
         .padding(DoggoSpacing.lg)

@@ -37,6 +37,6 @@ struct SegmentedTabs<Value: Hashable>: View {
             }
         }
         .padding(4)
-        .background(DoggoColor.chipCream, in: Capsule())
+        .glassEffect(.regular, in: .capsule)
     }
 }

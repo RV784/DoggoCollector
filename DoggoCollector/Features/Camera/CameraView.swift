@@ -81,32 +81,33 @@ struct CameraView: View {
     }
 
     private var topBar: some View {
-        HStack {
-            HStack(spacing: DoggoSpacing.xs) {
-                Circle().fill(.red).frame(width: 8, height: 8)
-                Text("LIVE")
-                    .font(DoggoTextStyle.eyebrow)
-                    .foregroundStyle(.white)
-            }
-            .padding(.horizontal, DoggoSpacing.md)
-            .padding(.vertical, DoggoSpacing.sm)
-            .background(.black.opacity(0.35), in: Capsule())
-
-            Spacer()
-
-            Button(action: viewModel.replayWhistle) {
-                VStack(spacing: DoggoSpacing.xs) {
-                    Image(systemName: "speaker.wave.2.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(DoggoColor.ink)
-                        .frame(width: 44, height: 44)
-                        .background(DoggoColor.cream, in: Circle())
-                    Text("Whistle")
-                        .font(DoggoTextStyle.caption)
+        GlassEffectContainer {
+            HStack {
+                HStack(spacing: DoggoSpacing.xs) {
+                    Circle().fill(.red).frame(width: 8, height: 8)
+                    Text("LIVE")
+                        .font(DoggoTextStyle.eyebrow)
                         .foregroundStyle(.white)
                 }
+                .padding(.horizontal, DoggoSpacing.md)
+                .padding(.vertical, DoggoSpacing.sm)
+                .glassEffect(.regular, in: .capsule)
+
+                Spacer()
+
+                Button(action: viewModel.replayWhistle) {
+                    VStack(spacing: DoggoSpacing.xs) {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(DoggoColor.ink)
+                            .glassCircleChrome(size: 44)
+                        Text("Whistle")
+                            .font(DoggoTextStyle.caption)
+                            .foregroundStyle(.white)
+                    }
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(ScalePressButtonStyle())
         }
     }
 
@@ -125,29 +126,35 @@ struct CameraView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(DoggoSpacing.md)
-        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+        .glassEffect(.regular, in: .rect(cornerRadius: DoggoRadius.control))
         .transition(.opacity)
     }
 
     private var bottomBar: some View {
-        HStack {
-            roundIconButton("chevron.left", action: onClose)
+        GlassEffectContainer {
+            HStack {
+                roundIconButton("chevron.left", action: onClose)
 
-            Spacer()
+                Spacer()
 
-            Button(action: handleShutter) {
-                Circle()
-                    .fill(.white)
-                    .frame(width: 68, height: 68)
-                    .overlay(Circle().stroke(DoggoColor.ink, lineWidth: 3).padding(4))
-                    .opacity(viewModel.isCapturing ? 0.6 : 1)
+                // Deliberately NOT glassed — a camera shutter's affordance is
+                // its solidity (Apple's own Camera app keeps a solid shutter
+                // in the glass era). Glassing the single most important
+                // control here would read as decoration.
+                Button(action: handleShutter) {
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 68, height: 68)
+                        .overlay(Circle().stroke(DoggoColor.ink, lineWidth: 3).padding(4))
+                        .opacity(viewModel.isCapturing ? 0.6 : 1)
+                }
+                .buttonStyle(ScalePressButtonStyle())
+                .disabled(viewModel.isCapturing)
+
+                Spacer()
+
+                roundIconButton("ellipsis", action: {})
             }
-            .buttonStyle(ScalePressButtonStyle())
-            .disabled(viewModel.isCapturing)
-
-            Spacer()
-
-            roundIconButton("ellipsis", action: {})
         }
     }
 
@@ -155,10 +162,9 @@ struct CameraView: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(.black.opacity(0.35), in: Circle())
+                .glassCircleChrome(size: 44)
         }
-        .buttonStyle(ScalePressButtonStyle())
+        .buttonStyle(.plain)
     }
 
     private func handleShutter() {

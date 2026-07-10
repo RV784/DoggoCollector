@@ -57,8 +57,7 @@ struct ProfileView: View {
             Button(action: { dismiss() }) {
                 Image(systemName: "chevron.left")
                     .foregroundStyle(DoggoColor.ink)
-                    .frame(width: 44, height: 44)
-                    .background(DoggoColor.cardWhite, in: Circle())
+                    .glassCircleChrome(size: 44)
             }
             Spacer()
         }

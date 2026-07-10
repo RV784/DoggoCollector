@@ -93,8 +93,7 @@ struct ShareView: View {
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
                     .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(.white.opacity(0.12), in: Circle())
+                    .glassCircleChrome(size: 36)
             }
         }
         .padding(.horizontal, DoggoSpacing.lg)

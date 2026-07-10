@@ -63,7 +63,6 @@ struct CareView: View {
 
             VStack(spacing: 0) {
                 VStack(spacing: DoggoSpacing.lg) {
-                    topBar
                     header
 
                     if hasLocationPermission {
@@ -83,7 +82,24 @@ struct CareView: View {
                 }
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            // No .glassCircleChrome() on toolbar item content — the native
+            // bar already supplies its own glass circle per item; adding
+            // ours too stacks two glass layers on one button.
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .foregroundStyle(DoggoColor.ink)
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: ProfileDestination()) {
+                    Image(systemName: "person.fill")
+                        .foregroundStyle(DoggoColor.ink)
+                }
+            }
+        }
         .task { locationProvider.requestAuthorization() }
         .task(id: "\(category)-\(radiusKm)-\(hasLocationPermission)") {
             guard hasLocationPermission else { return }
@@ -91,25 +107,6 @@ struct CareView: View {
         }
         .sheet(item: $selectedPlace) { place in
             CarePlaceDetailSheet(place: place)
-        }
-    }
-
-    private var topBar: some View {
-        HStack {
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .foregroundStyle(DoggoColor.ink)
-                    .frame(width: 44, height: 44)
-                    .background(DoggoColor.cardWhite, in: Circle())
-            }
-            .buttonStyle(ScalePressButtonStyle())
-            Spacer()
-            NavigationLink(value: ProfileDestination()) {
-                Image(systemName: "person.fill")
-                    .foregroundStyle(DoggoColor.ink)
-                    .frame(width: 44, height: 44)
-                    .background(DoggoColor.cardWhite, in: Circle())
-            }
         }
     }
 

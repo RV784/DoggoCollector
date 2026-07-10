@@ -22,8 +22,6 @@ struct PastWardsView: View {
             DoggoColor.cream.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: DoggoSpacing.lg) {
-                topBar
-
                 VStack(alignment: .leading, spacing: DoggoSpacing.xs) {
                     Text("Past Wards")
                         .font(DoggoTextStyle.displayMedium)
@@ -47,19 +45,16 @@ struct PastWardsView: View {
             }
             .padding(DoggoSpacing.lg)
         }
-        .toolbar(.hidden, for: .navigationBar)
-    }
-
-    private var topBar: some View {
-        HStack {
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .foregroundStyle(DoggoColor.ink)
-                    .frame(width: 44, height: 44)
-                    .background(DoggoColor.cardWhite, in: Circle())
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            // No .glassCircleChrome() — the native bar already supplies its
+            // own glass circle per toolbar item.
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .foregroundStyle(DoggoColor.ink)
+                }
             }
-            .buttonStyle(ScalePressButtonStyle())
-            Spacer()
         }
     }
 

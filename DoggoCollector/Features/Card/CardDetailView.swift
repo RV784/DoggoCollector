@@ -31,9 +31,6 @@ struct CardDetailView: View {
             DoggoColor.cream.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                topBar
-                    .padding(DoggoSpacing.lg)
-
                 ScrollView {
                     VStack(spacing: DoggoSpacing.lg) {
                         DoggoCardView(
@@ -74,6 +71,7 @@ struct CardDetailView: View {
                         }
                     }
                     .padding(.horizontal, DoggoSpacing.lg)
+                    .padding(.top, DoggoSpacing.lg)
                     .padding(.bottom, 100)
                 }
             }
@@ -82,7 +80,24 @@ struct CardDetailView: View {
                 .padding(DoggoSpacing.lg)
         }
         .toast(message: $toastMessage)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                circleButton("chevron.left", tint: DoggoColor.ink) {
+                    dismiss()
+                }
+            }
+            if dog.isWard {
+                ToolbarItem(placement: .topBarTrailing) {
+                    overflowMenu
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                circleButton(dog.isFavorite ? "heart.fill" : "heart", tint: DoggoColor.heartPink) {
+                    dog.isFavorite.toggle()
+                }
+            }
+        }
         .sheet(isPresented: $showShare) {
             ShareView(dog: dog)
         }
@@ -122,10 +137,9 @@ struct CardDetailView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundStyle(DoggoColor.marigold)
-                        .frame(width: 56, height: 56)
-                        .background(DoggoColor.cardWhite, in: Circle())
+                        .glassCircleChrome(size: 56)
                 }
-                .buttonStyle(ScalePressButtonStyle())
+                .buttonStyle(.plain)
             }
         } else {
             PillButton(title: "Share this doggo", systemImage: "square.and.arrow.up") {
@@ -166,21 +180,6 @@ struct CardDetailView: View {
         .buttonStyle(ScalePressButtonStyle())
     }
 
-    private var topBar: some View {
-        HStack {
-            circleButton("chevron.left", tint: DoggoColor.ink) {
-                dismiss()
-            }
-            Spacer()
-            if dog.isWard {
-                overflowMenu
-            }
-            circleButton(dog.isFavorite ? "heart.fill" : "heart", tint: DoggoColor.heartPink) {
-                dog.isFavorite.toggle()
-            }
-        }
-    }
-
     @ViewBuilder
     private var overflowMenu: some View {
         if dog.wardStatus == .active {
@@ -191,10 +190,7 @@ struct CardDetailView: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .foregroundStyle(DoggoColor.ink)
-                    .frame(width: 44, height: 44)
-                    .background(DoggoColor.cardWhite, in: Circle())
             }
-            .padding(.trailing, DoggoSpacing.sm)
         }
     }
 
@@ -203,13 +199,15 @@ struct CardDetailView: View {
         toastMessage = status.archiveToast
     }
 
+    // Deliberately no .glassCircleChrome() here — this is a native
+    // ToolbarItem, and the system already gives toolbar item content its
+    // own Liquid Glass circle automatically. Wrapping it in our own glass
+    // too stacks two glass layers on the same button (the "never nest glass
+    // inside glass" rule), which rendered as two overlapping circles.
     private func circleButton(_ systemName: String, tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .foregroundStyle(tint)
-                .frame(width: 44, height: 44)
-                .background(DoggoColor.cardWhite, in: Circle())
         }
-        .buttonStyle(ScalePressButtonStyle())
     }
 }

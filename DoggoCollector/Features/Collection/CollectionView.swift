@@ -38,7 +38,8 @@ struct CollectionView: View {
 
     // Matches the reference morph: a fairly stiff, grounded spring — not the
     // softer springs used for ordinary UI feedback elsewhere in the app.
-    private let morphAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)
+    private let morphAnimation: Animation = .spring(response: 0.4, dampingFraction: 1.0, blendDuration: 0)
+    private let morphOpenAnimation: Animation = .spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
 
     var body: some View {
         NavigationStack {
@@ -78,9 +79,11 @@ struct CollectionView: View {
                 // from sliding it in from a screen edge when it reappears.
                 ZStack {
                     if surfaceState == .idle {
-                        HStack(spacing: DoggoSpacing.md) {
-                            catchButton
-                            pawButton
+                        GlassEffectContainer {
+                            HStack(spacing: DoggoSpacing.md) {
+                                catchButton
+                                pawButton
+                            }
                         }
                     }
                 }
@@ -134,9 +137,8 @@ struct CollectionView: View {
             Spacer()
             NavigationLink(value: MapDestination()) {
                 Image(systemName: "mappin")
-                    .foregroundStyle(.white)
-                    .frame(width: 50, height: 50)
-                    .background(DoggoColor.marigold, in: Circle())
+                    .foregroundStyle(DoggoColor.marigold)
+                    .glassCircleChrome(size: 50)
             }
         }
     }
@@ -195,22 +197,56 @@ struct CollectionView: View {
     // (see CatchCelebrationView), so pill → viewfinder → card is one
     // continuous morph rather than a hard cut to a modal.
 
+//    private var catchButton: some View {
+//        Button(action: openCamera) {
+//            ZStack {
+//                // Liquid Glass on the hero pill (CLAUDE.md's Liquid Glass
+//                // decision, Step 4 — isolated/revertible): marigold stays
+//                // underneath at reduced opacity so the mid-morph crossfade
+//                // to the black camera panel still reads as it does today;
+//                // glass adds lensing on top rather than replacing the brand
+//                // color. `.glassEffectTransition(.identity)` stops the glass
+//                // material from running its own transition when this view
+//                // leaves the hierarchy — matchedGeometryEffect alone owns
+//                // the frame interpolation, so the two systems don't fight.
+//                // Glass is applied before matchedGeometryEffect so the
+//                // geometry effect wraps the final rendered element.
+//                DoggoColor.marigold.opacity(0.85)
+//                    .clipShape(RoundedRectangle(cornerRadius: DoggoRadius.pill))
+//                    .glassEffect(.clear.tint(DoggoColor.marigold).interactive(), in: .rect(cornerRadius: DoggoRadius.pill))
+//                    .glassEffectTransition(.identity)
+//                    .matchedGeometryEffect(id: "catchSurface", in: morphNamespace)
+//
+//                HStack(spacing: DoggoSpacing.sm) {
+//                    Image(systemName: "camera.fill")
+//                    Text("Catch a doggo")
+//                }
+//                .font(DoggoTextStyle.bodySemibold)
+//                .foregroundStyle(.purple)
+//                .transition(.opacity)
+//            }
+//            .frame(height: 56)
+//        }
+//        .buttonStyle(ScalePressButtonStyle())
+//    }
+    
     private var catchButton: some View {
         Button(action: openCamera) {
-            ZStack {
-                DoggoColor.marigold
-                    .clipShape(RoundedRectangle(cornerRadius: DoggoRadius.pill))
-                    .matchedGeometryEffect(id: "catchSurface", in: morphNamespace)
-
-                HStack(spacing: DoggoSpacing.sm) {
-                    Image(systemName: "camera.fill")
-                    Text("Catch a doggo")
+            DoggoColor.marigold.opacity(0.85)
+                .clipShape(RoundedRectangle(cornerRadius: DoggoRadius.pill))
+                .overlay {
+                    HStack(spacing: DoggoSpacing.sm) {
+                        Image(systemName: "camera.fill")
+                        Text("Catch a doggo")
+                    }
+                    .font(DoggoTextStyle.bodySemibold)
+                    .foregroundStyle(DoggoColor.cream)
+                    .transition(.opacity)
                 }
-                .font(DoggoTextStyle.bodySemibold)
-                .foregroundStyle(.white)
-                .transition(.opacity)
-            }
-            .frame(height: 56)
+                .glassEffect(.clear.tint(DoggoColor.marigold).interactive(), in: .rect(cornerRadius: DoggoRadius.pill))
+                .glassEffectTransition(.identity)
+                .matchedGeometryEffect(id: "catchSurface", in: morphNamespace)
+                .frame(height: 56)
         }
         .buttonStyle(ScalePressButtonStyle())
     }
@@ -219,11 +255,9 @@ struct CollectionView: View {
         NavigationLink(value: CareDestination()) {
             Image(systemName: "pawprint.fill")
                 .foregroundStyle(DoggoColor.marigold)
-                .frame(width: 58, height: 58)
-                .background(DoggoColor.cardWhite, in: Circle())
-                .overlay(Circle().stroke(Color(hex: 0xF3E4CC), lineWidth: 1.5))
+                .glassCircleChrome(size: 58)
         }
-        .buttonStyle(ScalePressButtonStyle())
+        .buttonStyle(.plain)
     }
 
     private var cameraPanel: some View {
@@ -244,7 +278,7 @@ struct CollectionView: View {
     }
 
     private func openCamera() {
-        withAnimation(morphAnimation) { surfaceState = .camera }
+        withAnimation(morphOpenAnimation) { surfaceState = .camera }
     }
 
     private func closeCamera() {

@@ -25,6 +25,7 @@ enum DoggoColor {
 
     static let cream = Color(hex: 0xFDEFDC)
     static let ink = Color(hex: 0x2B2013)
+    static let inkOffWhite = Color(hex: 0xE5E0D1)
     static let inkMuted = Color(hex: 0x8A7A63)
 
     static let cardWhite = Color(hex: 0xFFFFFF)

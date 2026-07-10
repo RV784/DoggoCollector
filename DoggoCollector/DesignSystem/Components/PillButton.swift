@@ -30,7 +30,8 @@ struct PillButton: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, DoggoSpacing.lg)
             .foregroundStyle(foregroundColor)
-            .background(backgroundColor, in: Capsule())
+//            .background(backgroundColor, in: Capsule())
+            .glassEffect(.clear.tint(DoggoColor.marigold).interactive(), in: .rect(cornerRadius: DoggoRadius.pill))
         }
         .buttonStyle(ScalePressButtonStyle())
     }

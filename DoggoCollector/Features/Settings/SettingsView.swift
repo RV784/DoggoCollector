@@ -18,43 +18,31 @@ struct SettingsView: View {
     @State private var showDeleteConfirmation = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
-            settingsList
-        }
-        .toolbar(.hidden, for: .navigationBar)
-        .alert("Edit username", isPresented: $showEditUsername) {
-            TextField("Username", text: $editedUsername)
-            Button("Save") { try? authProvider.updateUsername(editedUsername) }
-            Button("Cancel", role: .cancel) {}
-        }
-        .alert("Delete account?", isPresented: $showDeleteConfirmation) {
-            Button("Delete", role: .destructive, action: deleteAccount)
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This permanently deletes your pack and profile from this device. This can't be undone.")
-        }
-    }
-
-    private var topBar: some View {
-        HStack {
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .foregroundStyle(DoggoColor.ink)
-                    .frame(width: 44, height: 44)
-                    .background(DoggoColor.cardWhite, in: Circle())
+        settingsList
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                // No .glassCircleChrome() — the native bar already supplies
+                // its own glass circle per toolbar item.
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundStyle(DoggoColor.ink)
+                    }
+                }
             }
-            Spacer()
-            Text("Settings")
-                .font(DoggoTextStyle.headline)
-                .foregroundStyle(DoggoColor.ink)
-            Spacer()
-            Color.clear.frame(width: 44, height: 44)
-        }
-        .padding(.horizontal, DoggoSpacing.lg)
-        .padding(.top, DoggoSpacing.lg)
-        .padding(.bottom, DoggoSpacing.sm)
-        .background(DoggoColor.cream)
+            .alert("Edit username", isPresented: $showEditUsername) {
+                TextField("Username", text: $editedUsername)
+                Button("Save") { try? authProvider.updateUsername(editedUsername) }
+                Button("Cancel", role: .cancel) {}
+            }
+            .alert("Delete account?", isPresented: $showDeleteConfirmation) {
+                Button("Delete", role: .destructive, action: deleteAccount)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes your pack and profile from this device. This can't be undone.")
+            }
     }
 
     private var settingsList: some View {
