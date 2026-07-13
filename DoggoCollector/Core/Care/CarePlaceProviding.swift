@@ -14,6 +14,21 @@ import Foundation
 
 protocol CarePlaceProviding {
     func places(category: CareCategory, around center: CLLocationCoordinate2D, radiusKm: Double) async throws -> [CarePlace]
+    /// Free-text vet search for `ClinicPickerSheet`. Declared as a protocol
+    /// requirement (not just an extension convenience method) so dynamic
+    /// dispatch through a `CarePlaceProviding`-typed value correctly reaches
+    /// `LiveCareDirectory`'s real implementation below rather than always
+    /// hitting this default.
+    func searchVets(matching query: String, around center: CLLocationCoordinate2D, radiusKm: Double) async throws -> [CarePlace]
+}
+
+extension CarePlaceProviding {
+    /// Default no-op — only `LiveCareDirectory` supports free-text search;
+    /// `MockCareDirectory` (preview-only) doesn't need one, so this keeps it
+    /// compiling without writing dead mock-search code.
+    func searchVets(matching query: String, around center: CLLocationCoordinate2D, radiusKm: Double) async throws -> [CarePlace] {
+        []
+    }
 }
 
 struct MockCareDirectory: CarePlaceProviding {

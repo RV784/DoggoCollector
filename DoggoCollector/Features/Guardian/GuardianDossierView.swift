@@ -7,9 +7,11 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 struct GuardianDossierView: View {
     @Bindable var dog: CaughtDog
+    var onToast: (String) -> Void = { _ in }
 
     @State private var showStatusDialog = false
     @State private var showDietaryEdit = false
@@ -17,6 +19,11 @@ struct GuardianDossierView: View {
     @State private var showQuirksEdit = false
     @State private var quirksText = ""
     @State private var showClinicSheet = false
+    @State private var showClinicPicker = false
+    /// Set by ClinicSheet's "Change clinic" link, then consumed in
+    /// showClinicSheet's onDismiss — chains the two sheets without ever
+    /// presenting one directly from inside the other.
+    @State private var pendingClinicPicker = false
 
     private var lastCareCheckText: String {
         guard let latest = dog.sortedCareEntries.first else { return "No checks yet" }
@@ -48,8 +55,37 @@ struct GuardianDossierView: View {
             Button("Save") { dog.behavioralQuirks = quirksText.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty }
             Button("Cancel", role: .cancel) {}
         }
-        .sheet(isPresented: $showClinicSheet) {
-            ClinicSheet(dog: dog)
+        .sheet(isPresented: $showClinicSheet, onDismiss: {
+            if pendingClinicPicker {
+                pendingClinicPicker = false
+                showClinicPicker = true
+            }
+        }) {
+            ClinicSheet(dog: dog) {
+                pendingClinicPicker = true
+                showClinicSheet = false
+            }
+        }
+        .sheet(isPresented: $showClinicPicker) {
+            ClinicPickerSheet(dog: dog) { place in
+                dog.assignedClinicName = place.name
+                dog.assignedClinicPhone = place.phoneNumber
+                dog.assignedClinicAddress = place.address
+                dog.assignedClinicLatitude = place.coordinate.latitude
+                dog.assignedClinicLongitude = place.coordinate.longitude
+                // Distance relative to the dog's own coords, not the search
+                // center — the picker may have searched around the user's
+                // live location if the dog has no valid coords yet, which
+                // would otherwise leave a misleading distance on the dossier.
+                if dog.latitude != 0 || dog.longitude != 0 {
+                    let dogLocation = CLLocation(latitude: dog.latitude, longitude: dog.longitude)
+                    let clinicLocation = CLLocation(latitude: place.coordinate.latitude, longitude: place.coordinate.longitude)
+                    dog.assignedClinicDistanceMeters = dogLocation.distance(from: clinicLocation)
+                } else {
+                    dog.assignedClinicDistanceMeters = place.distanceMeters
+                }
+                onToast("Clinic updated \u{2713}")
+            }
         }
     }
 
@@ -80,7 +116,9 @@ struct GuardianDossierView: View {
                     }
                 }
                 GridRow {
-                    vitalCell(label: "ASSIGNED CLINIC", value: dog.assignedClinicName ?? "None nearby yet")
+                    vitalCell(label: "ASSIGNED CLINIC", value: dog.assignedClinicName ?? "Tap to choose") {
+                        showClinicPicker = true
+                    }
                     vitalCell(label: "LAST CARE CHECK", value: lastCareCheckText)
                 }
             }

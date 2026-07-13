@@ -33,7 +33,13 @@ struct InsightPanelView: View {
                     .transition(.opacity)
             }
         }
-        .task {
+        .task(id: dog.classifiedBreedRaw) {
+            // Re-keyed on the breed itself (not just once on appear) so a
+            // user-corrected breed (setUserEditedBreed mutates
+            // classifiedBreedRaw) replays the loading state and regenerates
+            // tips/fact for the corrected breed instead of leaving stale
+            // content on screen.
+            insight = nil
             async let resolved = insightProvider.insight(for: dog)
             async let minimumDelay: ()? = try? Task.sleep(for: .milliseconds(700))
             let (result, _) = await (resolved, minimumDelay)

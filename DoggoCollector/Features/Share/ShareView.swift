@@ -79,7 +79,7 @@ struct ShareView: View {
         .task(id: selectedColorway) {
             renderedImage = renderCard()
         }
-        .task {
+        .task(id: dog.classifiedBreedRaw) {
             insight = await insightProvider.insight(for: dog)
         }
         .sheet(isPresented: $isActivitySheetPresented) {
@@ -177,7 +177,10 @@ struct ShareView: View {
         Grid(alignment: .leading, horizontalSpacing: DoggoSpacing.lg, verticalSpacing: DoggoSpacing.sm) {
             GridRow {
                 metadataCell(label: "AGE", value: insight?.ageBracket.rawValue ?? "—")
-                metadataCell(label: "BREED · AI GUESS", value: insight?.breedGuess ?? "—")
+                // Honesty over a static label: once the user has corrected
+                // the breed by hand, it's no longer an AI guess (same
+                // principle as decision #13's removal of fake open-hours).
+                metadataCell(label: dog.breedUserEdited ? "BREED" : "BREED · AI GUESS", value: insight?.breedGuess ?? "—")
             }
             GridRow {
                 metadataCell(label: "NEIGHBORHOOD", value: dog.locationLabel)

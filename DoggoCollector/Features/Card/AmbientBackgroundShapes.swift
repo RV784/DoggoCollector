@@ -42,7 +42,17 @@ struct AmbientBackgroundShapes: View {
             }
         }
         .allowsHitTesting(false)
-        .onAppear { drift = true }
+        // Started via a deferred .task instead of .onAppear — this view
+        // appears mid-flight during the camera → celebration
+        // matchedGeometryEffect morph, and kicking off a repeatForever
+        // animation synchronously in that same commit risks merging into
+        // the active transition (see CatchCelebrationView's Scout bounce,
+        // same underlying concern). A short delay lets the 0.4s morph
+        // spring fully settle first.
+        .task {
+            try? await Task.sleep(for: .milliseconds(500))
+            drift = true
+        }
     }
 
     @ViewBuilder

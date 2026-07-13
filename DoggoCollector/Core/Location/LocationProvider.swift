@@ -9,7 +9,14 @@ import CoreLocation
 final class LocationProvider: NSObject {
     private(set) var authorizationStatus: CLAuthorizationStatus
     private let manager = CLLocationManager()
-    private var locationContinuation: CheckedContinuation<CLLocation?, Never>?
+    // An array, not a single slot: a second concurrent caller (e.g. a
+    // catch-time call while CameraViewModel's start-of-camera pre-warm call
+    // is still in flight) used to silently overwrite the first caller's
+    // continuation here, leaking it — the first caller would then hang
+    // forever, since only the continuation referenced at the moment
+    // didUpdateLocations fires ever got resumed. Every pending caller is
+    // resumed together off the same location/error callback now.
+    private var pendingContinuations: [CheckedContinuation<CLLocation?, Never>] = []
 
     override init() {
         authorizationStatus = manager.authorizationStatus
@@ -26,7 +33,7 @@ final class LocationProvider: NSObject {
             return nil
         }
         return await withCheckedContinuation { continuation in
-            locationContinuation = continuation
+            pendingContinuations.append(continuation)
             manager.requestLocation()
         }
     }
@@ -38,12 +45,18 @@ extension LocationProvider: CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        locationContinuation?.resume(returning: locations.first)
-        locationContinuation = nil
+        let continuations = pendingContinuations
+        pendingContinuations.removeAll()
+        for continuation in continuations {
+            continuation.resume(returning: locations.first)
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        locationContinuation?.resume(returning: nil)
-        locationContinuation = nil
+        let continuations = pendingContinuations
+        pendingContinuations.removeAll()
+        for continuation in continuations {
+            continuation.resume(returning: nil)
+        }
     }
 }

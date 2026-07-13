@@ -23,11 +23,15 @@ struct CameraView: View {
 
     var body: some View {
         ZStack {
-            if viewModel.cameraService.isAuthorized {
-                CameraPreviewView(session: viewModel.cameraService.session)
-            } else {
-                Color.black
+            Group {
+                if viewModel.cameraService.isAuthorized {
+                    CameraPreviewView(session: viewModel.cameraService.session)
+                } else {
+                    Color.black
+                }
             }
+            .opacity(viewModel.isCapturing ? 0.7 : 1)
+            .animation(.easeInOut(duration: 0.2), value: viewModel.isCapturing)
 
             LinearGradient(
                 colors: [.black.opacity(0.4), .clear, .clear, .black.opacity(0.5)],
@@ -54,11 +58,23 @@ struct CameraView: View {
                         .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                         .frame(width: 170, height: 170)
 
-                    Text(showMissBanner ? "No dog spotted — try again!" : "Point at a doggo")
-                        .font(DoggoTextStyle.bodySemibold)
-                        .foregroundStyle(.white)
-                        .shadow(radius: 4)
+                    if viewModel.isCapturing {
+                        HStack(spacing: DoggoSpacing.sm) {
+                            Text("Scout's checking\u{2026}")
+                                .font(DoggoTextStyle.bodySemibold)
+                                .foregroundStyle(.white)
+                                .shadow(radius: 4)
+                            BouncingDotsView()
+                        }
+                        .transition(.opacity)
+                    } else {
+                        Text(showMissBanner ? "No dog spotted — try again!" : "Point at a doggo")
+                            .font(DoggoTextStyle.bodySemibold)
+                            .foregroundStyle(.white)
+                            .shadow(radius: 4)
+                    }
                 }
+                .animation(.easeInOut(duration: 0.2), value: viewModel.isCapturing)
 
                 Spacer()
 

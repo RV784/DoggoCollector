@@ -22,6 +22,8 @@ extension Color {
 enum DoggoColor {
     static let marigold = Color(hex: 0xF5A623)
     static let marigoldDark = Color(hex: 0xE08E0B)
+    
+    static let marigoldContrast = Color(hex: 0x0E7490)
 
     static let cream = Color(hex: 0xFDEFDC)
     static let ink = Color(hex: 0x2B2013)

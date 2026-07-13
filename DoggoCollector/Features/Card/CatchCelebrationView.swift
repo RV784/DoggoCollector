@@ -20,9 +20,10 @@ struct CatchCelebrationView: View {
     var onAddToPack: () -> Void
 
     @State private var showShare = false
-    @State private var bounce = false
     @State private var showRename = false
     @State private var renameText = ""
+    @State private var showEditBreed = false
+    @State private var editBreedText = ""
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -32,8 +33,11 @@ struct CatchCelebrationView: View {
             ScrollView {
                 VStack(spacing: DoggoSpacing.lg) {
                     ScoutMascot(expression: .happy, size: 100)
-                        .rotationEffect(.degrees(bounce ? -6 : 6))
-                        .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: bounce)
+                        .phaseAnimator([-6.0, 6.0]) { view, angle in
+                            view.rotationEffect(.degrees(angle))
+                        } animation: { _ in
+                            .easeInOut(duration: 0.5)
+                        }
                         .transition(.opacity)
 
                     VStack(spacing: DoggoSpacing.xs) {
@@ -52,6 +56,21 @@ struct CatchCelebrationView: View {
                                 Image(systemName: "pencil")
                                     .font(.system(size: 12))
                                     .foregroundStyle(.white.opacity(0.7))
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            editBreedText = dog.breedLabel
+                            showEditBreed = true
+                        } label: {
+                            HStack(spacing: DoggoSpacing.xs) {
+                                Text("\(dog.breedLabel) \u{00B7} not right?")
+                                    .font(DoggoTextStyle.caption)
+                                    .foregroundStyle(.white.opacity(0.75))
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.white.opacity(0.6))
                             }
                         }
                         .buttonStyle(.plain)
@@ -90,9 +109,9 @@ struct CatchCelebrationView: View {
             }
             .padding(.horizontal, DoggoSpacing.xl)
             .padding(.bottom, DoggoSpacing.xl)
-            .transition(.opacity)
+            .contentShape(Rectangle())
+            .zIndex(1)
         }
-        .onAppear { bounce = true }
         .sheet(isPresented: $showShare) {
             ShareView(dog: dog)
         }
@@ -101,6 +120,14 @@ struct CatchCelebrationView: View {
             Button("Save") {
                 let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty { dog.name = trimmed }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Edit breed", isPresented: $showEditBreed) {
+            TextField("Breed", text: $editBreedText)
+            Button("Save") {
+                let trimmed = editBreedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { dog.setUserEditedBreed(trimmed) }
             }
             Button("Cancel", role: .cancel) {}
         }

@@ -48,6 +48,10 @@ final class CaughtDog {
     /// catches get a lazy backfill the first time their card is opened).
     var classifiedBreedRaw: String? = nil
     var breedConfidence: Double? = nil
+    /// True once the user has corrected the breed by hand. The classifier
+    /// is 67% test-accurate, so a wrong guess is an expected, common case —
+    /// see `setUserEditedBreed(_:)`.
+    var breedUserEdited: Bool = false
 
     var wardStatus: WardStatus {
         get { WardStatus(rawValue: wardStatusRaw) ?? .active }
@@ -73,6 +77,23 @@ final class CaughtDog {
     var classifiedDisplayBreed: String? {
         guard let classifiedBreedRaw else { return nil }
         return classifiedBreedRaw == "mixed_or_uncertain" ? "Indie mix" : classifiedBreedRaw
+    }
+
+    /// The one place a user-corrected breed gets written — keeps every
+    /// dependent field in sync in one shot: `breedLabel` (every display
+    /// site reads this directly, not the insight), `classifiedBreedRaw`
+    /// (so `FoundationModelsInsightProvider.ensureClassified`'s `nil` guard
+    /// permanently skips backfill here — the user's word is never
+    /// overwritten by the model), and `breedConfidence`/`breedUserEdited`
+    /// (provenance, so e.g. Share can stop labeling it an "AI guess").
+    /// Verbatim "Indie mix" is handled fine — `classifiedDisplayBreed` only
+    /// special-cases the raw `"mixed_or_uncertain"` token, so this reads
+    /// back correctly either way.
+    func setUserEditedBreed(_ text: String) {
+        breedLabel = text
+        classifiedBreedRaw = text
+        breedConfidence = nil
+        breedUserEdited = true
     }
 
     var sortedCareEntries: [CareEntry] {

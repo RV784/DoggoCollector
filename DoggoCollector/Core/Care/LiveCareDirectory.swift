@@ -78,6 +78,16 @@ struct LiveCareDirectory: CarePlaceProviding {
         return finalize(merged, center: center, radiusKm: radiusKm)
     }
 
+    /// Free-text vet search for `ClinicPickerSheet` — deliberately without
+    /// the `.animalService` POI filter that `vets(around:radiusKm:)` above
+    /// uses: a user typing a specific clinic's name by hand shouldn't be
+    /// filtered out just because Apple categorized it oddly.
+    func searchVets(matching query: String, around center: CLLocationCoordinate2D, radiusKm: Double) async throws -> [CarePlace] {
+        let request = makeRequest(query: query, center: center, radiusKm: radiusKm, filterAnimalService: false)
+        let response = try await MKLocalSearch(request: request).start()
+        return finalize(response.mapItems.compactMap { carePlace(from: $0, category: .vet, center: center) }, center: center, radiusKm: radiusKm)
+    }
+
     private func makeRequest(query: String, center: CLLocationCoordinate2D, radiusKm: Double, filterAnimalService: Bool) -> MKLocalSearch.Request {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query

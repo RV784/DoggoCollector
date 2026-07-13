@@ -16,6 +16,8 @@ struct CardDetailView: View {
     @State private var showShare = false
     @State private var showRename = false
     @State private var renameText = ""
+    @State private var showEditBreed = false
+    @State private var editBreedText = ""
     @State private var showPledgeSheet = false
     @State private var showLogSheet = false
     @State private var showShelterPass = false
@@ -46,15 +48,27 @@ struct CardDetailView: View {
                             .font(DoggoTextStyle.caption)
                             .foregroundStyle(DoggoColor.inkMuted)
 
-                        Button {
-                            renameText = dog.name
-                            showRename = true
-                        } label: {
-                            Label("Rename", systemImage: "pencil")
-                                .font(DoggoTextStyle.caption)
-                                .foregroundStyle(DoggoColor.marigold)
+                        HStack(spacing: DoggoSpacing.lg) {
+                            Button {
+                                renameText = dog.name
+                                showRename = true
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                                    .font(DoggoTextStyle.caption)
+                                    .foregroundStyle(DoggoColor.marigold)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                editBreedText = dog.breedLabel
+                                showEditBreed = true
+                            } label: {
+                                Label("Edit breed", systemImage: "pencil")
+                                    .font(DoggoTextStyle.caption)
+                                    .foregroundStyle(DoggoColor.marigold)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
 
                         if !dog.isWard {
                             pledgeBanner
@@ -67,7 +81,9 @@ struct CardDetailView: View {
                         if !dog.isWard || detailTab == .sniff {
                             InsightPanelView(dog: dog)
                         } else {
-                            GuardianDossierView(dog: dog)
+                            GuardianDossierView(dog: dog) { message in
+                                toastMessage = message
+                            }
                         }
                     }
                     .padding(.horizontal, DoggoSpacing.lg)
@@ -123,6 +139,14 @@ struct CardDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .alert("Edit breed", isPresented: $showEditBreed) {
+            TextField("Breed", text: $editBreedText)
+            Button("Save") {
+                let trimmed = editBreedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { dog.setUserEditedBreed(trimmed) }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     @ViewBuilder
@@ -154,13 +178,25 @@ struct CardDetailView: View {
         } label: {
             HStack(spacing: DoggoSpacing.md) {
                 ScoutMascot(expression: .happy, size: 44)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DoggoSpacing.xs) {
                     Text("Does \(dog.name) live in your neighborhood?")
                         .font(DoggoTextStyle.bodySemibold)
                         .foregroundStyle(DoggoColor.ink)
-                    Text("Become their Guardian \u{2192}")
-                        .font(DoggoTextStyle.caption)
-                        .foregroundStyle(DoggoColor.inkMuted)
+                    // A compact filled capsule, not full-width — the
+                    // full-width marigold pill language belongs to the
+                    // screen's primary CTA ("Share this doggo" below), so
+                    // this reads as "secondary but definitely a button"
+                    // rather than competing with it.
+                    HStack(spacing: 4) {
+                        Text("Become their Guardian")
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(DoggoTextStyle.bodySemibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, DoggoSpacing.md)
+                    .padding(.vertical, DoggoSpacing.xs)
+                    .glassEffect(.clear)
+                    .background(DoggoColor.marigoldContrast, in: Capsule())
                 }
                 Spacer(minLength: 0)
             }
@@ -170,12 +206,15 @@ struct CardDetailView: View {
             // (a user-supplied screenshot) and the app's existing "Scout
             // says something" info-card style (see CareView.scoutBanner),
             // not a bold CTA color — the "Share this doggo" button below
-            // already owns marigold.
+            // already owns marigold. A subtle elevation shadow separates
+            // this specific card from that flat info-banner styling, since
+            // it's the one thing here that's actually tappable.
             .background(DoggoColor.chipCream, in: RoundedRectangle(cornerRadius: DoggoRadius.card))
             .overlay(
                 RoundedRectangle(cornerRadius: DoggoRadius.card)
                     .stroke(DoggoColor.statusAttnBorder, lineWidth: 1)
             )
+            .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
         }
         .buttonStyle(ScalePressButtonStyle())
     }

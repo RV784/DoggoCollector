@@ -11,6 +11,7 @@ import MapKit
 
 struct ClinicSheet: View {
     let dog: CaughtDog
+    var onRequestChange: () -> Void = {}
 
     private var distanceText: String {
         guard let meters = dog.assignedClinicDistanceMeters else { return "" }
@@ -46,6 +47,8 @@ struct ClinicSheet: View {
                 }
             }
 
+            TextLinkButton(title: "Change clinic", action: onRequestChange)
+
             Text("See all nearby care from the paw button on your pack.")
                 .font(DoggoTextStyle.caption)
                 .foregroundStyle(DoggoColor.inkMuted)
@@ -67,8 +70,8 @@ struct ClinicSheet: View {
 
     private func openInMaps() {
         guard let latitude = dog.assignedClinicLatitude, let longitude = dog.assignedClinicLongitude else { return }
-        let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        let location = CLLocation(latitude: latitude, longitude: longitude)
+        let mapItem = MKMapItem(location: location, address: nil)
         mapItem.name = dog.assignedClinicName
         mapItem.openInMaps()
     }
