@@ -13,6 +13,11 @@ import SwiftUI
 
 enum WardStatus: String, Codable, CaseIterable {
     case active, adopted, passed, lostContact
+    /// Set on the sender's copy once a Guardian Handover (decision #18) is
+    /// confirmed claimed — the dossier stays fully intact and viewable,
+    /// same never-delete rule as every other archive status, it's just no
+    /// longer this device's responsibility to act on.
+    case handedOver
 
     var displayTitle: String {
         switch self {
@@ -20,6 +25,7 @@ enum WardStatus: String, Codable, CaseIterable {
         case .adopted: "Adopted"
         case .passed: "Passed away"
         case .lostContact: "Lost contact"
+        case .handedOver: "Handed over"
         }
     }
 
@@ -29,6 +35,7 @@ enum WardStatus: String, Codable, CaseIterable {
         case .adopted: "Found a forever home"
         case .passed: "Kept in memory, gently"
         case .lostContact: nil
+        case .handedOver: "Now looked after by someone else"
         }
     }
 
@@ -38,6 +45,7 @@ enum WardStatus: String, Codable, CaseIterable {
         case .adopted: "heart.fill"
         case .passed: "leaf.fill"
         case .lostContact: "questionmark.circle"
+        case .handedOver: "arrow.triangle.2.circlepath"
         }
     }
 
@@ -47,6 +55,7 @@ enum WardStatus: String, Codable, CaseIterable {
         case .adopted: "A forever home ✓ — Past Wards"
         case .passed: "Kept in memory — Past Wards"
         case .lostContact: "Moved to Past Wards"
+        case .handedOver: "Handed over — Past Wards"
         case .active: ""
         }
     }

@@ -117,6 +117,13 @@ final class CameraViewModel {
         let needsLocationPatch = prewarmedLocation == nil
 
         let generated = CatchNameGenerator.generate()
+        // With CloudKit sync (decision #18), two devices catching before
+        // syncing can mint the same serialCount + 1 — accepted as a known
+        // cross-device quirk rather than built around: this is cosmetic
+        // display flavor ("#014 in your pack"), not identity — `id: UUID`
+        // is the real, always-unique key everything else keys off of. Not
+        // worth distributed-sequence machinery for a number nobody checks
+        // for uniqueness.
         let serialCount = (try? modelContext.fetchCount(FetchDescriptor<CaughtDog>())) ?? 0
 
         // Cropped to a square here, once, at the source — matching the

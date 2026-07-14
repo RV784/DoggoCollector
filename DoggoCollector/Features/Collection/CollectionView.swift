@@ -21,6 +21,7 @@ private enum PackTab: Hashable {
 
 struct CollectionView: View {
     @Environment(UsernameAuthProvider.self) private var authProvider
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \CaughtDog.caughtAt, order: .reverse) private var catches: [CaughtDog]
 
     @Namespace private var morphNamespace
@@ -140,6 +141,16 @@ struct CollectionView: View {
         }
         .task {
             await MedicationReminder.sweep(dogs: catches)
+        }
+        // With CloudKit sync (decision #18), schedules can now arrive on
+        // this device from another one — a sweep only at launch would miss
+        // them for the rest of a long-lived session. Re-running on every
+        // return to foreground is the plan's own "cheap version" of
+        // reconciliation; a real CloudKit-push-triggered wakeup is out of
+        // scope for this pass.
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task { await MedicationReminder.sweep(dogs: catches) }
         }
     }
 

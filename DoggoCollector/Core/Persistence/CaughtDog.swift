@@ -8,17 +8,23 @@ import SwiftData
 
 @Model
 final class CaughtDog {
-    var id: UUID
-    var name: String
-    var breedLabel: String
-    var traits: [String]
+    // Literal defaults on these original properties (previously set only
+    // in `init`) — CloudKit-backed SwiftData (decision #18) requires every
+    // stored property to have a literal default or be optional. Adding
+    // these is behavior-neutral for existing code (init still sets real
+    // values on every new instance) but is itself a schema change — see
+    // decision #18's migration-sanity note.
+    var id: UUID = UUID()
+    var name: String = ""
+    var breedLabel: String = ""
+    var traits: [String] = []
     @Attribute(.externalStorage) var imageData: Data?
-    var caughtAt: Date
-    var locationLabel: String
-    var latitude: Double
-    var longitude: Double
-    var serialNumber: Int
-    var isFavorite: Bool
+    var caughtAt: Date = Date.now
+    var locationLabel: String = ""
+    var latitude: Double = 0
+    var longitude: Double = 0
+    var serialNumber: Int = 0
+    var isFavorite: Bool = false
 
     // Guardian Mode — literal defaults required on the declarations
     // themselves (not just in `init`) so SwiftData can lightweight-migrate
@@ -59,6 +65,12 @@ final class CaughtDog {
     /// is 67% test-accurate, so a wrong guess is an expected, common case —
     /// see `setUserEditedBreed(_:)`.
     var breedUserEdited: Bool = false
+
+    /// The most recent Guardian Handover invite URL created for this dog
+    /// (decision #18) — lets HandoverOfferSheet re-show an existing link
+    /// instead of minting a new CKShare every time it's reopened, and gates
+    /// whether the overflow menu's "Mark as handed over" action appears.
+    var handoverOfferURLString: String? = nil
 
     var wardStatus: WardStatus {
         get { WardStatus(rawValue: wardStatusRaw) ?? .active }

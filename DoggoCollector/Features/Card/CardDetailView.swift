@@ -21,6 +21,7 @@ struct CardDetailView: View {
     @State private var showPledgeSheet = false
     @State private var showLogSheet = false
     @State private var showShelterPass = false
+    @State private var showHandoverOffer = false
     @State private var toastMessage: String?
     @State private var detailTab: DetailTab = .dossier
 
@@ -131,6 +132,9 @@ struct CardDetailView: View {
         .fullScreenCover(isPresented: $showShelterPass) {
             ShelterPassView(dog: dog)
         }
+        .sheet(isPresented: $showHandoverOffer) {
+            HandoverOfferSheet(dog: dog)
+        }
         .alert("Rename doggo", isPresented: $showRename) {
             TextField("Name", text: $renameText)
             Button("Save") {
@@ -223,6 +227,19 @@ struct CardDetailView: View {
     private var overflowMenu: some View {
         if dog.wardStatus == .active {
             Menu {
+                Button("Hand over guardianship\u{2026}", systemImage: "arrow.triangle.2.circlepath") {
+                    showHandoverOffer = true
+                }
+                // Only once an invite has actually been created — the sender
+                // has to confirm this manually (CKShare doesn't notify the
+                // sender when a recipient accepts; there's no subscription
+                // built for that in this pass, see decision #18).
+                if dog.handoverOfferURLString != nil {
+                    Button("Mark as handed over", systemImage: "checkmark.circle") {
+                        archiveWard(as: .handedOver)
+                    }
+                }
+                Divider()
                 Button("Adopted", systemImage: "heart.fill") { archiveWard(as: .adopted) }
                 Button("Passed away", systemImage: "leaf.fill") { archiveWard(as: .passed) }
                 Button("Lost contact", systemImage: "questionmark.circle") { archiveWard(as: .lostContact) }
