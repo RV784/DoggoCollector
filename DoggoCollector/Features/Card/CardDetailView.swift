@@ -37,7 +37,7 @@ struct CardDetailView: View {
                 ScrollView {
                     VStack(spacing: DoggoSpacing.lg) {
                         DoggoCardView(
-                            image: dog.imageData.flatMap(UIImage.init),
+                            image: DogPhoto.image(from: dog.imageData, size: .card, cacheKey: dog.id.uuidString),
                             name: dog.name,
                             breedLabel: dog.breedLabel,
                             serialNumber: dog.serialNumber,

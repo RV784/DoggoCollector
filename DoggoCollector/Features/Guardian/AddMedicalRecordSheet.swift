@@ -183,7 +183,13 @@ struct AddMedicalRecordSheet: View {
 
     private func loadPhotos(_ items: [PhotosPickerItem]) async {
         for item in items {
-            guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+            guard let raw = try? await item.loadTransferable(type: Data.self) else { continue }
+            // Re-encode down to a legible-but-bounded size — a photo-library
+            // pick can be 48MP+ verbatim, which RecordPreviewController's
+            // pager may decode for the current page and its neighbors at
+            // once (see memory_crash_fixes.md Step 5).
+            let data = DogPhoto.image(from: raw, size: .document)?
+                .jpegData(compressionQuality: 0.8) ?? raw
             let filename = "photo-\(UUID().uuidString).jpg"
             pendingAttachments.append(PendingAttachment(data: data, filename: filename, isPDF: false))
         }

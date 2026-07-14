@@ -112,8 +112,7 @@ struct FoundationModelsInsightProvider: DogInsightProviding {
     /// they'd stay stuck on the old whimsical label even after backfill.
     private func ensureClassified(_ dog: CaughtDog) async {
         guard dog.classifiedBreedRaw == nil else { return }
-        guard let imageData = dog.imageData,
-              let uiImage = UIImage(data: imageData),
+        guard let uiImage = DogPhoto.image(from: dog.imageData, size: .card, cacheKey: dog.id.uuidString),
               let cgImage = uiImage.cgImage else { return }
         let result = await breedClassifier.classify(cgImage)
         dog.classifiedBreedRaw = result?.breedName

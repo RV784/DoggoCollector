@@ -22,6 +22,7 @@ private enum PackTab: Hashable {
 struct CollectionView: View {
     @Environment(UsernameAuthProvider.self) private var authProvider
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \CaughtDog.caughtAt, order: .reverse) private var catches: [CaughtDog]
 
     @Namespace private var morphNamespace
@@ -140,6 +141,7 @@ struct CollectionView: View {
             .navigationDestination(for: TodaysCareDestination.self) { _ in TodaysCareView() }
         }
         .task {
+            await PhotoStoreRepair.run(dogs: catches, context: modelContext)
             await MedicationReminder.sweep(dogs: catches)
         }
         // With CloudKit sync (decision #18), schedules can now arrive on
@@ -197,7 +199,7 @@ struct CollectionView: View {
                 ForEach(catches) { dog in
                     NavigationLink(value: dog) {
                         DoggoCardView(
-                            image: dog.imageData.flatMap(UIImage.init),
+                            image: DogPhoto.image(from: dog.imageData, size: .tile, cacheKey: dog.id.uuidString),
                             name: dog.name,
                             breedLabel: dog.breedLabel,
                             serialNumber: dog.serialNumber,

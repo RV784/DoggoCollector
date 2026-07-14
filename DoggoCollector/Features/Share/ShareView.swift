@@ -123,7 +123,7 @@ struct ShareView: View {
 
     private var cardPreview: some View {
         DoggoCardView(
-            image: dog.imageData.flatMap(UIImage.init),
+            image: DogPhoto.image(from: dog.imageData, size: .card, cacheKey: dog.id.uuidString),
             name: dog.name,
             breedLabel: dog.breedLabel,
             serialNumber: dog.serialNumber,

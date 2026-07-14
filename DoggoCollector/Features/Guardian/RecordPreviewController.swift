@@ -47,7 +47,7 @@ struct RecordPreviewController: View {
     private func attachmentPage(_ attachment: MedicalAttachment) -> some View {
         if attachment.isPDF {
             PDFKitView(data: attachment.data)
-        } else if let uiImage = UIImage(data: attachment.data) {
+        } else if let uiImage = DogPhoto.image(from: attachment.data, size: .card) {
             ScrollView([.horizontal, .vertical]) {
                 Image(uiImage: uiImage)
                     .resizable()

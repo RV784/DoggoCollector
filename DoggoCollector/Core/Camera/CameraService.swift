@@ -23,6 +23,7 @@ final class CameraService: NSObject {
     nonisolated(unsafe) private(set) var hasCameraInput = false
     private let photoOutput = AVCapturePhotoOutput()
     private let sessionQueue = DispatchQueue(label: "com.doggocollector.camera.session")
+    private let continuationLock = NSLock()
     private var photoContinuation: CheckedContinuation<UIImage?, Never>?
 
     func requestAccessAndConfigure() async {
@@ -47,16 +48,46 @@ final class CameraService: NSObject {
     func capturePhoto() async -> UIImage? {
         guard hasCameraInput else { return nil }
         return await withCheckedContinuation { continuation in
-            photoContinuation = continuation
+            continuationLock.lock()
+            let alreadyPending = photoContinuation != nil
+            if !alreadyPending { photoContinuation = continuation }
+            continuationLock.unlock()
+
+            guard !alreadyPending else {
+                // A capture is already in flight — refuse rather than
+                // silently overwrite and leak the first caller's
+                // continuation (the same continuation-hygiene bug class
+                // already fixed in LocationProvider and
+                // CoreMLBreedClassifier; see memory_crash_fixes.md). The
+                // shutter is disabled while capturing, so this guards a
+                // theoretical race, not an observed live crash.
+                continuation.resume(returning: nil)
+                return
+            }
+
             sessionQueue.async { [weak self] in
                 guard let self, hasCameraInput else {
-                    continuation.resume(returning: nil)
+                    self?.resumeAndClearContinuation(with: nil)
                     return
                 }
                 let settings = AVCapturePhotoSettings()
                 photoOutput.capturePhoto(with: settings, delegate: self)
             }
         }
+    }
+
+    /// Takes the pending continuation (under lock, at most once) and
+    /// resumes it — used by both the "no camera input" early-out and the
+    /// capture delegate callback, so a continuation can never be resumed
+    /// twice even if AVFoundation were to double-fire the delegate (a
+    /// checked continuation traps immediately and uncatchably on a second
+    /// resume).
+    private func resumeAndClearContinuation(with image: UIImage?) {
+        continuationLock.lock()
+        let continuation = photoContinuation
+        photoContinuation = nil
+        continuationLock.unlock()
+        continuation?.resume(returning: image)
     }
 
     private static func requestAccess() async -> Bool {
@@ -92,11 +123,10 @@ final class CameraService: NSObject {
 
 extension CameraService: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        defer { photoContinuation = nil }
         guard let data = photo.fileDataRepresentation(), let image = UIImage(data: data) else {
-            photoContinuation?.resume(returning: nil)
+            resumeAndClearContinuation(with: nil)
             return
         }
-        photoContinuation?.resume(returning: image)
+        resumeAndClearContinuation(with: image)
     }
 }
