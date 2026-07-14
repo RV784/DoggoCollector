@@ -18,8 +18,22 @@ struct WardsListView: View {
         catches.contains { $0.isWard && $0.wardStatus != .active }
     }
 
+    private var hasAnyActiveSchedule: Bool {
+        TodaysCare.hasAnyActiveSchedule(in: catches)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DoggoSpacing.md) {
+            if hasAnyActiveSchedule {
+                NavigationLink(value: TodaysCareDestination()) {
+                    Text("Today's Care \u{2192}")
+                        .font(DoggoTextStyle.bodySemibold)
+                        .underline()
+                        .foregroundStyle(DoggoColor.marigold)
+                }
+                .buttonStyle(.plain)
+            }
+
             if activeWards.isEmpty {
                 emptyState
             } else {

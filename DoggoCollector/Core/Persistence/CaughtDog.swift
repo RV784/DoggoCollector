@@ -41,6 +41,13 @@ final class CaughtDog {
     @Relationship(deleteRule: .cascade, inverse: \CareEntry.dog)
     var careEntries: [CareEntry]? = []
 
+    // Medication tracking & medical records — literal defaults for the same
+    // lightweight-migration reason as the fields above.
+    @Relationship(deleteRule: .cascade, inverse: \MedicationSchedule.dog)
+    var medicationSchedules: [MedicationSchedule]? = []
+    @Relationship(deleteRule: .cascade, inverse: \MedicalRecord.dog)
+    var medicalRecords: [MedicalRecord]? = []
+
     // Breed classification — literal defaults for the same lightweight-
     // migration reason as the Guardian fields above.
     /// Raw class label from CoreMLBreedClassifier, including
@@ -98,6 +105,20 @@ final class CaughtDog {
 
     var sortedCareEntries: [CareEntry] {
         (careEntries ?? []).sorted { $0.timestamp > $1.timestamp }
+    }
+
+    /// Ended courses drop out of this list (they remain in the store,
+    /// never deleted) — sorted soonest-due-first so the Dossier and Today's
+    /// Care read as a timeline, not a shuffled table.
+    var activeMedicationSchedules: [MedicationSchedule] {
+        let entries = careEntries ?? []
+        return (medicationSchedules ?? [])
+            .filter(\.isActive)
+            .sorted { $0.nextDueDate(in: entries) < $1.nextDueDate(in: entries) }
+    }
+
+    var sortedMedicalRecords: [MedicalRecord] {
+        (medicalRecords ?? []).sorted { $0.date > $1.date }
     }
 
     init(

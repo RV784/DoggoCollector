@@ -17,6 +17,10 @@ final class CareEntry {
     var note: String = ""
     var timestamp: Date = Date.now
     var dog: CaughtDog?
+    /// Set when this entry was logged from a MedicationSchedule's give-dose
+    /// button; nil for entries logged from the plain LogInteractionSheet
+    /// tiles (unchanged behavior).
+    var scheduleId: UUID? = nil
 
     init(type: CareEntryType, note: String = "", timestamp: Date = .now, dog: CaughtDog? = nil) {
         self.id = UUID()

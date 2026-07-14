@@ -37,6 +37,8 @@ struct GuardianDossierView: View {
             if dog.assignedClinicName != nil {
                 clinicRow
             }
+            MedicationsSection(dog: dog, onToast: onToast)
+            MedicalRecordsSection(dog: dog, onToast: onToast)
             timelineSection
         }
         .confirmationDialog("Update \(dog.name)'s status", isPresented: $showStatusDialog, titleVisibility: .visible) {

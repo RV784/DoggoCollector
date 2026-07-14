@@ -13,7 +13,10 @@ struct DoggoCollectorApp: App {
 
     init() {
         do {
-            modelContainer = try ModelContainer(for: CaughtDog.self, UserProfile.self, CareEntry.self)
+            modelContainer = try ModelContainer(
+                for: CaughtDog.self, UserProfile.self, CareEntry.self,
+                MedicationSchedule.self, MedicalRecord.self, MedicalAttachment.self
+            )
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }

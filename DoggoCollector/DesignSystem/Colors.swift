@@ -59,6 +59,17 @@ enum DoggoColor {
     static let provEstBg = Color(hex: 0xF3E4CC);  static let provEstFg = Color(hex: 0x9A7B45)
     static let provObsBg = Color(hex: 0xE6F0E8);  static let provObsFg = Color(hex: 0x3E8E52)
 
+    // Medication tracking — from the Phase 2 design prototype. Everything
+    // else in that design maps onto existing tokens above (see the plan's
+    // color-mapping rule) — these are the genuinely new ones.
+    static let sheetCream = Color(hex: 0xFFF6E9)
+    static let dashedBorder = Color(hex: 0xEAD9BF)
+    static let recordPhotoBg = Color(hex: 0xDCEBF7)
+    static let recordPhotoFg = Color(hex: 0x3E93A6)
+    static let recordFileBg = Color(hex: 0xF5E3A8)
+    static let recordFileFg = Color(hex: 0xC0872B)
+    static let inputBorder = Color(hex: 0xFFE0BC)
+
     static let cameraGradient = LinearGradient(
         colors: [sky, sage],
         startPoint: .top,

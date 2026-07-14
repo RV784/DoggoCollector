@@ -5,14 +5,16 @@
 
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(UsernameAuthProvider.self) private var authProvider
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var locationProvider = LocationProvider()
-    @State private var notificationsEnabled = false
+    @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @State private var showEditUsername = false
     @State private var editedUsername = ""
     @State private var showDeleteConfirmation = false
@@ -43,6 +45,18 @@ struct SettingsView: View {
             } message: {
                 Text("This permanently deletes your pack and profile from this device. This can't be undone.")
             }
+            .task {
+                notificationStatus = await MedicationReminder.authorizationStatus()
+            }
+            // The toggle-off/denied path deep-links to system Settings —
+            // without this, granting permission there and returning would
+            // leave the toggle stuck showing "off" until this screen is
+            // dismissed and reopened (unlike CareView's location status,
+            // which is genuinely live via LocationProvider's delegate).
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                Task { notificationStatus = await MedicationReminder.authorizationStatus() }
+            }
     }
 
     private var settingsList: some View {
@@ -57,7 +71,7 @@ struct SettingsView: View {
             }
 
             Section("Preferences") {
-                Toggle(isOn: $notificationsEnabled) {
+                Toggle(isOn: Binding(get: { notificationsEnabled }, set: handleNotificationToggle)) {
                     Label("Notifications", systemImage: "bell.fill")
                 }
                 HStack {
@@ -84,6 +98,28 @@ struct SettingsView: View {
         }
     }
 
+    private var notificationsEnabled: Bool {
+        notificationStatus == .authorized || notificationStatus == .provisional || notificationStatus == .ephemeral
+    }
+
+    /// Toggling on from `.notDetermined` requests permission directly;
+    /// otherwise (already denied, or turning "off") apps can't change their
+    /// own notification permission, so this deep-links to system Settings
+    /// instead of faking a local off-state — same pattern as CareView's
+    /// location row.
+    private func handleNotificationToggle(_ newValue: Bool) {
+        if newValue && notificationStatus == .notDetermined {
+            Task {
+                _ = await MedicationReminder.requestAuthorization()
+                notificationStatus = await MedicationReminder.authorizationStatus()
+            }
+        } else {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        }
+    }
+
     private var locationStatusText: String {
         switch locationProvider.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways: "Allowed"
@@ -101,6 +137,14 @@ struct SettingsView: View {
     }
 
     private func deleteAccount() {
+        // Cancel every dog's reminders before the cascade-delete — without
+        // this, stray "Time for {name}'s {drug}" notifications could still
+        // fire for dogs that no longer exist until the next CollectionView
+        // sweep happens to run.
+        let allCatches = (try? modelContext.fetch(FetchDescriptor<CaughtDog>())) ?? []
+        for dog in allCatches {
+            MedicationReminder.cancelAll(for: dog)
+        }
         try? modelContext.delete(model: CaughtDog.self)
         try? modelContext.delete(model: UserProfile.self)
         authProvider.signOut()

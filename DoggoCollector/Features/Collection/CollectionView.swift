@@ -29,6 +29,7 @@ struct CollectionView: View {
     @State private var packTab: PackTab = .all
 
     private var hasWards: Bool { catches.contains { $0.isWard } }
+    private var dosesDueTodayCount: Int { TodaysCare.dueTodayCount(for: catches) }
 
     private let mechanic = PackCollectorMechanic()
     private let columns = [
@@ -90,6 +91,20 @@ struct CollectionView: View {
                 .padding(.horizontal, DoggoSpacing.lg)
                 .padding(.bottom, DoggoSpacing.lg)
 
+                // Stable anchor for the "N doses due today" entry chip —
+                // only when something's genuinely due, and only in .idle
+                // (must never float over the camera panel or celebration).
+                ZStack {
+                    if surfaceState == .idle, dosesDueTodayCount > 0 {
+                        HStack {
+                            todaysCareChip
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, DoggoSpacing.lg)
+                    }
+                }
+                .padding(.bottom, 90)
+
                 // Stable anchor for the active camera panel.
                 ZStack {
                     if surfaceState == .camera {
@@ -121,6 +136,10 @@ struct CollectionView: View {
             .navigationDestination(for: CareDestination.self) { _ in CareView() }
             .navigationDestination(for: MapDestination.self) { _ in MapView() }
             .navigationDestination(for: PastWardsDestination.self) { _ in PastWardsView() }
+            .navigationDestination(for: TodaysCareDestination.self) { _ in TodaysCareView() }
+        }
+        .task {
+            await MedicationReminder.sweep(dogs: catches)
         }
     }
 
@@ -251,6 +270,32 @@ struct CollectionView: View {
         .buttonStyle(ScalePressButtonStyle())
     }
 
+    private var todaysCareChip: some View {
+        NavigationLink(value: TodaysCareDestination()) {
+            HStack(spacing: DoggoSpacing.sm) {
+                Image(systemName: "pills.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DoggoColor.logMedFg)
+                    .frame(width: 24, height: 24)
+                    .background(DoggoColor.logMedBg, in: RoundedRectangle(cornerRadius: 8))
+                Text(dosesDueTodayCount == 1 ? "1 dose due today" : "\(dosesDueTodayCount) doses due today")
+                    .font(DoggoTextStyle.bodySemibold)
+                    .foregroundStyle(DoggoColor.ink)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(DoggoColor.marigold)
+            }
+            .padding(.horizontal, DoggoSpacing.md)
+            .padding(.vertical, DoggoSpacing.sm)
+            .background(DoggoColor.cardWhite, in: Capsule())
+            .overlay(
+                Capsule().stroke(DoggoColor.statusAttnBorder, lineWidth: 1.5)
+            )
+            .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
+        }
+        .buttonStyle(.plain)
+    }
+
     private var pawButton: some View {
         NavigationLink(value: CareDestination()) {
             Image(systemName: "pawprint.fill")
@@ -299,6 +344,7 @@ struct ProfileDestination: Hashable {}
 struct CareDestination: Hashable {}
 struct MapDestination: Hashable {}
 struct PastWardsDestination: Hashable {}
+struct TodaysCareDestination: Hashable {}
 
 #Preview {
     CollectionView()

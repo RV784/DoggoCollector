@@ -235,6 +235,7 @@ struct CardDetailView: View {
 
     private func archiveWard(as status: WardStatus) {
         dog.wardStatus = status
+        MedicationReminder.cancelAll(for: dog)
         toastMessage = status.archiveToast
     }
 
