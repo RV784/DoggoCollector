@@ -45,8 +45,12 @@ final class CameraViewModel {
 
     /// Whistles, captures a frame, confirms a dog is present via `SubjectDetecting`,
     /// and saves a new catch. Returns nil (and sets `lastCatchFailed`) if no dog
-    /// was found in the captured frame.
-    func attemptCatch(in modelContext: ModelContext) async -> CaughtDog? {
+    /// was found in the captured frame. `liveMovie` mirrors the camera panel's
+    /// Live Photo toggle — when true (and the hardware supports it), the
+    /// resulting catch gets a trailing movie companion patched in a few
+    /// seconds later (see the `movieTask` handling below); it never affects
+    /// still-path timing, per decision #16/#19's latency discipline.
+    func attemptCatch(in modelContext: ModelContext, liveMovie: Bool) async -> CaughtDog? {
         isCapturing = true
         defer { isCapturing = false }
 
@@ -54,9 +58,9 @@ final class CameraViewModel {
 
         // Overlap the fixed 180ms whistle beat with the real AVCapture
         // round-trip instead of paying both serially.
-        async let capturedImage = cameraService.capturePhoto()
+        async let captured = cameraService.capturePhoto(liveMovie: liveMovie)
         async let whistleSettled: Void = { try? await Task.sleep(for: .milliseconds(180)) }()
-        let (photo, _) = await (capturedImage, whistleSettled)
+        let (result, _) = await (captured, whistleSettled)
 
         let hasDog: Bool
         let finalImage: UIImage
@@ -70,17 +74,22 @@ final class CameraViewModel {
         // an oddly specific, meaningless breed rather than "Indie mix"),
         // not a bug — real device photos classify sensibly either way.
         var breed: BreedResult?
+        // Resolves independently of the still (see CameraService.capturePhoto)
+        // — nil on the Simulator fallback path by construction, since no
+        // real camera means no live-photo movie is ever offered.
+        let movieTask: Task<LivePhotoMovie?, Never>?
 
-        if let photo {
+        if let result {
+            movieTask = result.movie
             // Crop+downscale immediately, before detection/classification —
             // the multi-hundred-MB full-res capture must not coexist with
             // Vision's working set, the classifier's working set, and a
-            // JPEG encode buffer all at once. `photo` is released once this
-            // scope's local reference goes away (see memory_crash_fixes.md).
-            // This also means detection now judges the same square the app
-            // stores/displays, which is arguably more honest than judging
-            // the uncropped frame.
-            let processed = photo.croppedToSquare()
+            // JPEG encode buffer all at once. `result.still` is released
+            // once this scope's local reference goes away (see
+            // memory_crash_fixes.md). This also means detection now judges
+            // the same square the app stores/displays, which is arguably
+            // more honest than judging the uncropped frame.
+            let processed = result.still.croppedToSquare()
             if let cgImage = processed.cgImage {
                 // Detection and classification run sequentially, not
                 // concurrently, deliberately — running two Vision requests
@@ -104,6 +113,7 @@ final class CameraViewModel {
         } else if let fallback = Self.simulatorFallbackImage() {
             // No real camera available (Simulator) — treat as a successful
             // catch so the rest of the flow can still be exercised end-to-end.
+            movieTask = nil
             let processed = fallback.croppedToSquare()
             hasDog = true
             finalImage = processed
@@ -111,12 +121,22 @@ final class CameraViewModel {
                 breed = await breedClassifier.classify(cgImage)
             }
         } else {
+            movieTask = nil
             hasDog = false
             finalImage = UIImage()
         }
 
         guard hasDog else {
             lastCatchFailed = true
+            // A miss still leaves a temp movie file on disk if the toggle
+            // was on — nothing gets saved, but the file still needs
+            // cleaning up once it finishes.
+            if let movieTask {
+                Task {
+                    guard let movie = await movieTask.value else { return }
+                    try? FileManager.default.removeItem(at: movie.url)
+                }
+            }
             return nil
         }
 
@@ -177,6 +197,45 @@ final class CameraViewModel {
                 dog.locationLabel = resolved.label
                 dog.latitude = resolved.latitude
                 dog.longitude = resolved.longitude
+            }
+        }
+
+        // The live-photo movie is a deferred patch, not part of the catch's
+        // critical path (decision C) — it keeps recording/processing for
+        // ~1.5-2s after the shutter, well after this function has already
+        // returned the saved dog and the morph to the celebration card has
+        // started. `dog` is a SwiftData @Model reference, so mutating
+        // `livePhotoMovieData` here is picked up by anything already
+        // observing it (Card Detail, the celebration card) for free, same
+        // deferred-patch pattern as the location label above.
+        if let movieTask {
+            Task { @MainActor in
+                guard let movie = await movieTask.value else { return }
+                defer { try? FileManager.default.removeItem(at: movie.url) }
+                // Two tiers from the same raw capture — .full for Card
+                // Detail/Celebration, .tile for the Pack grid (added after
+                // on-device use showed grid tiles paying the same decode
+                // cost as a full card despite rendering much smaller).
+                // Sequential, not concurrent (`async let`) — two
+                // AVAssetReaders reading the same file at once is
+                // unverified in this environment, and this is background
+                // work with no user-visible latency either way.
+                let fullData = await LivePhotoMovieProcessor.transcodeSquare(
+                    input: movie.url,
+                    photoDisplayTime: movie.photoDisplayTime,
+                    assetIdentifier: dog.id.uuidString,
+                    tier: .full
+                )
+                let tileData = await LivePhotoMovieProcessor.transcodeSquare(
+                    input: movie.url,
+                    photoDisplayTime: movie.photoDisplayTime,
+                    assetIdentifier: dog.id.uuidString,
+                    tier: .tile
+                )
+                guard fullData != nil || tileData != nil else { return }
+                dog.livePhotoMovieData = fullData
+                dog.livePhotoMovieTileData = tileData
+                LiveMovieStore.evict(id: dog.id.uuidString)
             }
         }
 

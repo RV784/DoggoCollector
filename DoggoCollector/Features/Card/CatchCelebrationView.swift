@@ -24,6 +24,15 @@ struct CatchCelebrationView: View {
     @State private var renameText = ""
     @State private var showEditBreed = false
     @State private var editBreedText = ""
+    /// Gates the live-photo movie overlay until the pill→panel→card morph
+    /// (decision #5) has settled — this card *is* the geometry-matched
+    /// element in that chain, and LoopingMovieView is UIKit-backed, the
+    /// exact content class that broke the original morph. In practice the
+    /// movie data doesn't even exist until CameraViewModel's deferred
+    /// patch task lands (~2-4s post-shutter), so this mostly guards
+    /// against re-entry with an already-populated dog. Same idiom as
+    /// decision #16's ambient-shapes-vs-morph-transaction fix.
+    @State private var showLiveMovie = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -92,7 +101,10 @@ struct CatchCelebrationView: View {
                         breedLabel: dog.breedLabel,
                         serialNumber: dog.serialNumber,
                         traits: dog.traits,
-                        placeholderSeed: dog.id.hashValue
+                        placeholderSeed: dog.id.hashValue,
+                        liveMovieURL: showLiveMovie
+                            ? dog.livePhotoMovieData.flatMap { LiveMovieStore.url(for: $0, id: dog.id.uuidString) }
+                            : nil
                     )
                     .matchedGeometryEffect(id: "catchSurface", in: morphNamespace)
                     .rotationEffect(.degrees(-3))
@@ -111,6 +123,10 @@ struct CatchCelebrationView: View {
             .padding(.bottom, DoggoSpacing.xl)
             .contentShape(Rectangle())
             .zIndex(1)
+        }
+        .task {
+            try? await Task.sleep(for: .milliseconds(600))
+            showLiveMovie = true
         }
         .sheet(isPresented: $showShare) {
             ShareView(dog: dog)

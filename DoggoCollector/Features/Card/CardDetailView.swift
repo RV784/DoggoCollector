@@ -42,7 +42,8 @@ struct CardDetailView: View {
                             breedLabel: dog.breedLabel,
                             serialNumber: dog.serialNumber,
                             traits: dog.traits,
-                            placeholderSeed: dog.id.hashValue
+                            placeholderSeed: dog.id.hashValue,
+                            liveMovieURL: dog.livePhotoMovieData.flatMap { LiveMovieStore.url(for: $0, id: dog.id.uuidString) }
                         )
 
                         Text("\(serialText) in your pack \u{00B7} caught at \(dog.locationLabel)")

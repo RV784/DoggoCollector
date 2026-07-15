@@ -29,6 +29,8 @@ struct CloudKitHandoverProvider: HandoverProviding {
     private let containerIdentifier = "iCloud.com.DoggoCollector"
     private let recordType = "HandoverDossier"
     private let photoFieldKey = "photo"
+    private let liveMovieFieldKey = "liveMovie"
+    private let liveMovieTileFieldKey = "liveMovieTile"
     private let payloadFieldKey = "payload"
 
     private var container: CKContainer {
@@ -66,6 +68,18 @@ struct CloudKitHandoverProvider: HandoverProviding {
             let url = try Self.writeTempFile(data: imageData, extension: "jpg")
             tempFiles.append(url)
             record[photoFieldKey] = CKAsset(fileURL: url)
+        }
+
+        if let movieData = dog.livePhotoMovieData {
+            let url = try Self.writeTempFile(data: movieData, extension: "mov")
+            tempFiles.append(url)
+            record[liveMovieFieldKey] = CKAsset(fileURL: url)
+        }
+
+        if let movieTileData = dog.livePhotoMovieTileData {
+            let url = try Self.writeTempFile(data: movieTileData, extension: "mov")
+            tempFiles.append(url)
+            record[liveMovieTileFieldKey] = CKAsset(fileURL: url)
         }
 
         for medicalRecord in dog.medicalRecords ?? [] {
@@ -122,6 +136,8 @@ struct CloudKitHandoverProvider: HandoverProviding {
         let package = try JSONDecoder().decode(HandoverPackage.self, from: payloadData)
 
         let photoData = (record[photoFieldKey] as? CKAsset)?.fileURL.flatMap { try? Data(contentsOf: $0) }
+        let movieData = (record[liveMovieFieldKey] as? CKAsset)?.fileURL.flatMap { try? Data(contentsOf: $0) }
+        let movieTileData = (record[liveMovieTileFieldKey] as? CKAsset)?.fileURL.flatMap { try? Data(contentsOf: $0) }
 
         var attachmentData: [String: Data] = [:]
         for medicalRecord in package.medicalRecords {
@@ -134,7 +150,7 @@ struct CloudKitHandoverProvider: HandoverProviding {
             }
         }
 
-        return HandoverAcceptance(package: package, photoData: photoData, attachmentData: attachmentData)
+        return HandoverAcceptance(package: package, photoData: photoData, movieData: movieData, movieTileData: movieTileData, attachmentData: attachmentData)
     }
 
     // MARK: - Helpers

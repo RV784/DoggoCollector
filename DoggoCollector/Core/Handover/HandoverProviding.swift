@@ -22,6 +22,15 @@ enum HandoverError: Error {
 struct HandoverAcceptance {
     let package: HandoverPackage
     let photoData: Data?
+    /// The transcoded live-photo movie companion, if the ward had one —
+    /// nil for wards pledged before that feature existed, or wherever the
+    /// toggle was off. Same "just another optional CKAsset" treatment as
+    /// `photoData`, not tracked as a presence flag in `HandoverPackage`.
+    let movieData: Data?
+    /// The cheaper Pack-grid tier of the same movie (decision #21's
+    /// grid-tier addition) — carried separately since the recipient's own
+    /// Pack grid needs it too, not just their Card Detail/Celebration.
+    let movieTileData: Data?
     /// Keyed by `MedicalAttachmentSnapshot.assetFieldKey`, not by array
     /// position — see HandoverPackage's own note on why.
     let attachmentData: [String: Data]

@@ -21,6 +21,22 @@ struct DoggoCardView: View {
     /// the breed chip on the opposite corner. Kept small so it never
     /// competes with the photo.
     var showsGuardianTag: Bool = false
+    /// When non-nil, a muted movie loops continuously over the still for
+    /// as long as this card is on screen (originally capped at 3 loops
+    /// then faded back to the still — changed after on-device use showed
+    /// that read as "plays once, looks dead," see LoopingMovieView).
+    /// Originally scoped to full-size cards only
+    /// (Card Detail/Catch Celebration) — the camera-revamp plan's Decision
+    /// E kept the Collection grid still-only, reasoning a grid of
+    /// concurrent `AVPlayer`s was "exactly" the class of memory/CPU
+    /// pressure decision #19 eliminated. That analogy doesn't actually
+    /// hold at this size: decision #19's problem was ~82MP JPEG decodes
+    /// (~330MB each); this movie is a 720×720 HEVC clip at 2.5Mbps, a
+    /// couple of orders of magnitude smaller. Wired into the grid too per
+    /// user request — watch real-device scroll smoothness/memory if a
+    /// user has many live-photo catches visible at once; nothing here
+    /// caps concurrent grid players yet.
+    var liveMovieURL: URL? = nil
 
     private var serialText: String {
         "#" + String(format: "%03d", serialNumber)
@@ -31,11 +47,12 @@ struct DoggoCardView: View {
             photo
                 .allowsHitTesting(false)
                 .overlay(alignment: .topLeading) {
-                    // In compact mode the breed already repeats as caption
-                    // text below, so when the Guardian tag needs the
-                    // opposite corner, drop this one rather than collide —
-                    // the narrow grid tile isn't wide enough for both.
-                    if !(isCompact && showsGuardianTag) {
+                    // Compact/grid cards don't show this — the breed
+                    // already repeats as caption text below (see the
+                    // isCompact branch further down), and showing it
+                    // twice on a small tile was redundant. Full-size
+                    // cards (Card Detail/Celebration) keep it.
+                    if !isCompact {
                         TagChip(text: breedLabel)
                             .padding(DoggoSpacing.sm)
                     }
@@ -106,6 +123,19 @@ struct DoggoCardView: View {
                         .scaledToFill()
                 } else {
                     PolkaDotPlaceholder(seed: placeholderSeed)
+                }
+            }
+            .overlay {
+                // A crossfading content layer above the still — never a
+                // new geometry peer, so this doesn't touch whatever
+                // matchedGeometryEffect chain this card participates in
+                // (decision #5). `.allowsHitTesting(false)` here is
+                // redundant with the outer one below, kept anyway per
+                // this project's own history with photo-adjacent
+                // hit-testing bugs (Resolved #1).
+                if let liveMovieURL {
+                    LoopingMovieView(url: liveMovieURL)
+                        .allowsHitTesting(false)
                 }
             }
             .clipped()

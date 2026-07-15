@@ -20,6 +20,14 @@ struct CameraView: View {
     @State private var viewModel = CameraViewModel()
     @State private var showMissBanner = false
     @AppStorage("hasSeenCameraSafetyTip") private var hasSeenSafetyTip = false
+    @AppStorage("livePhotoCaptureEnabled") private var livePhotoEnabled = true
+    /// The zoom factor a pinch gesture is scaling from — captured lazily on
+    /// the first `.onChanged` of each gesture (whatever the live factor is
+    /// at that moment, regardless of whether it got there via a previous
+    /// pinch or a chip tap) and cleared on `.onEnded` so the next gesture
+    /// re-captures fresh. Keeps the gesture code itself "dumb" (per the
+    /// plan) — no manual re-syncing needed from other zoom-changing sites.
+    @State private var pinchGestureBaseFactor: CGFloat?
 
     var body: some View {
         ZStack {
@@ -78,6 +86,8 @@ struct CameraView: View {
 
                 Spacer()
 
+                zoomChips
+
                 if !hasSeenSafetyTip {
                     safetyTipCard
                 }
@@ -88,6 +98,21 @@ struct CameraView: View {
             .padding(.top, DoggoSpacing.lg)
             .padding(.bottom, DoggoSpacing.xl)
         }
+        // Attaches to the whole panel, including buttons — safe, since
+        // magnification needs two simultaneous touches and buttons win
+        // over a two-finger gesture by default.
+        .gesture(
+            MagnifyGesture()
+                .onChanged { value in
+                    guard !viewModel.isCapturing else { return }
+                    let base = pinchGestureBaseFactor ?? viewModel.cameraService.currentZoomFactor
+                    if pinchGestureBaseFactor == nil { pinchGestureBaseFactor = base }
+                    viewModel.cameraService.setZoomFactor(base * value.magnification, animated: false)
+                }
+                .onEnded { _ in
+                    pinchGestureBaseFactor = nil
+                }
+        )
         .task {
             await viewModel.start()
         }
@@ -97,34 +122,79 @@ struct CameraView: View {
     }
 
     private var topBar: some View {
-        GlassEffectContainer {
-            HStack {
-                HStack(spacing: DoggoSpacing.xs) {
-                    Circle().fill(.red).frame(width: 8, height: 8)
-                    Text("LIVE")
-                        .font(DoggoTextStyle.eyebrow)
-                        .foregroundStyle(.white)
-                }
-                .padding(.horizontal, DoggoSpacing.md)
-                .padding(.vertical, DoggoSpacing.sm)
-                .glassEffect(.regular, in: .capsule)
+        HStack {
+            Spacer()
 
-                Spacer()
-
-                Button(action: viewModel.replayWhistle) {
-                    VStack(spacing: DoggoSpacing.xs) {
-                        Image(systemName: "speaker.wave.2.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(DoggoColor.ink)
-                            .glassCircleChrome(size: 44)
-                        Text("Whistle")
-                            .font(DoggoTextStyle.caption)
-                            .foregroundStyle(.white)
-                    }
+            // Hidden entirely on unsupported hardware/Simulator — there's
+            // nothing useful to toggle there (see CameraService's
+            // isLivePhotoCaptureSupported).
+            if viewModel.cameraService.isLivePhotoCaptureSupported {
+                Button {
+                    livePhotoEnabled.toggle()
+                } label: {
+                    Image(systemName: livePhotoEnabled ? "livephoto" : "livephoto.slash")
+                        .foregroundStyle(livePhotoEnabled ? DoggoColor.marigold : .white)
+                        .glassCircleChrome(size: 44)
                 }
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    /// Hidden when there's no camera (Simulator), only one zoom anchor
+    /// exists (nothing to pick between), or the one-time safety tip is
+    /// still showing — the tip already competes for the same vertical
+    /// budget the panel's fixed height was tuned around (decision #12),
+    /// so this trades a moment of chip unavailability for guaranteed
+    /// no-clip rather than trying to shrink anything the morph depends on.
+    @ViewBuilder
+    private var zoomChips: some View {
+        if hasSeenSafetyTip,
+           viewModel.cameraService.hasCameraInput,
+           let context = viewModel.cameraService.zoomContext,
+           context.anchorFactors.count > 1 {
+            HStack(spacing: DoggoSpacing.sm) {
+                ForEach(context.anchorFactors, id: \.self) { anchor in
+                    zoomChip(anchor: anchor, context: context)
+                }
+            }
+        }
+    }
+
+    private func zoomChip(anchor: CGFloat, context: ZoomContext) -> some View {
+        let selected = nearestAnchor(to: viewModel.cameraService.currentZoomFactor, in: context.anchorFactors) == anchor
+        let label = Text(formattedZoomLabel(context.displayValue(for: anchor)))
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .frame(width: 32, height: 32)
+        return Button {
+            guard !viewModel.isCapturing else { return }
+            viewModel.cameraService.setZoomFactor(anchor, animated: true)
+        } label: {
+            if selected {
+                label.foregroundStyle(DoggoColor.ink).background(.white, in: Circle())
+            } else {
+                label.foregroundStyle(.white).glassCircleChrome(size: 32)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func nearestAnchor(to factor: CGFloat, in anchors: [CGFloat]) -> CGFloat? {
+        anchors.min { abs($0 - factor) < abs($1 - factor) }
+    }
+
+    /// Apple-style zoom labels: sub-1x anchors show a bare decimal
+    /// ("0.5"), integer-ish values show "1x"/"2x"/"3x", anything else
+    /// (only reachable mid-pinch, not by a fixed chip anchor) falls back
+    /// to one decimal place.
+    private func formattedZoomLabel(_ value: CGFloat) -> String {
+        if value < 1 {
+            return String(format: "%.1f", value)
+        }
+        if abs(value - value.rounded()) < 0.05 {
+            return "\(Int(value.rounded()))x"
+        }
+        return String(format: "%.1fx", value)
     }
 
     private var safetyTipCard: some View {
@@ -169,7 +239,7 @@ struct CameraView: View {
 
                 Spacer()
 
-                roundIconButton("ellipsis", action: {})
+                roundIconButton("speaker.wave.2.fill", action: viewModel.replayWhistle)
             }
         }
     }
@@ -185,7 +255,7 @@ struct CameraView: View {
 
     private func handleShutter() {
         Task {
-            if let dog = await viewModel.attemptCatch(in: modelContext) {
+            if let dog = await viewModel.attemptCatch(in: modelContext, liveMovie: livePhotoEnabled) {
                 onCaught(dog)
             } else {
                 withAnimation { showMissBanner = true }

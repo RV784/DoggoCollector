@@ -44,6 +44,8 @@ enum HandoverMaterializer {
         dog.classifiedBreedRaw = package.classifiedBreedRaw
         dog.breedConfidence = package.breedConfidence
         dog.breedUserEdited = package.breedUserEdited
+        dog.livePhotoMovieData = acceptance.movieData
+        dog.livePhotoMovieTileData = acceptance.movieTileData
         context.insert(dog)
 
         // scheduleId references get remapped: MedicationSchedule.id is

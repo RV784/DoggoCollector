@@ -205,7 +205,14 @@ struct CollectionView: View {
                             serialNumber: dog.serialNumber,
                             isCompact: true,
                             placeholderSeed: dog.id.hashValue,
-                            showsGuardianTag: dog.isActiveWard
+                            showsGuardianTag: dog.isActiveWard,
+                            // Prefer the cheap .tile transcode (decision #21's
+                            // grid-tier addition); fall back to the full
+                            // 720x720 movie for catches made before that
+                            // field existed, rather than showing no movie
+                            // at all for them.
+                            liveMovieURL: dog.livePhotoMovieTileData.flatMap { LiveMovieStore.url(for: $0, id: dog.id.uuidString, tier: .tile) }
+                                ?? dog.livePhotoMovieData.flatMap { LiveMovieStore.url(for: $0, id: dog.id.uuidString, tier: .full) }
                         )
                     }
                     .buttonStyle(.plain)

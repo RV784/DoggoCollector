@@ -72,6 +72,21 @@ final class CaughtDog {
     /// whether the overflow menu's "Mark as handed over" action appears.
     var handoverOfferURLString: String? = nil
 
+    /// Transcoded square live-photo companion movie (silent, ~3s, HEVC,
+    /// 720x720) — nil when the catch wasn't a live photo (toggle off,
+    /// Simulator, capture/transcode failure, or a pre-feature catch).
+    /// Patched in asynchronously a few seconds after the catch saves (same
+    /// deferred-patch pattern as the location label) — the still (`imageData`)
+    /// is always the source of truth; this is presentation-only enrichment.
+    @Attribute(.externalStorage) var livePhotoMovieData: Data? = nil
+    /// A cheaper 360x360/~800kbps transcode of the same movie, for the
+    /// Pack grid (added after real on-device use showed grid tiles
+    /// looping too, at the same cost as the full 720x720 tier — see
+    /// CLAUDE.md decision #21's grid-tier note). Nil for catches made
+    /// before this field existed even when `livePhotoMovieData` isn't —
+    /// callers fall back to the full tier in that case, not to silence.
+    @Attribute(.externalStorage) var livePhotoMovieTileData: Data? = nil
+
     var wardStatus: WardStatus {
         get { WardStatus(rawValue: wardStatusRaw) ?? .active }
         set { wardStatusRaw = newValue.rawValue }
