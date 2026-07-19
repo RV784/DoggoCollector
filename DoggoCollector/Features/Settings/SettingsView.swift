@@ -10,7 +10,7 @@ import UserNotifications
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(UsernameAuthProvider.self) private var authProvider
+    @Environment(GameCenterAuthProvider.self) private var authProvider
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var locationProvider = LocationProvider()
@@ -18,6 +18,8 @@ struct SettingsView: View {
     @State private var showEditUsername = false
     @State private var editedUsername = ""
     @State private var showDeleteConfirmation = false
+    @AppStorage(NeighborhoodPublisher.consentKey) private var neighborhoodShare = false
+    @AppStorage(NeighborhoodPublisher.consentSeenKey) private var hasSeenNeighborhoodConsent = false
 
     var body: some View {
         settingsList
@@ -62,11 +64,23 @@ struct SettingsView: View {
     private var settingsList: some View {
         List {
             Section("Profile") {
-                Button {
-                    editedUsername = authProvider.currentUsername ?? ""
-                    showEditUsername = true
-                } label: {
-                    row(icon: "person.fill", title: "Username", value: authProvider.currentUsername ?? "")
+                if authProvider.isGameCenterAuthenticated {
+                    // The display name is the player's Game Center alias —
+                    // changed in system Settings → Game Center, not here
+                    // (the local username survives underneath as fallback).
+                    VStack(alignment: .leading, spacing: DoggoSpacing.xs) {
+                        row(icon: "person.fill", title: "Username", value: authProvider.currentUsername ?? "")
+                        Text("Managed by Game Center")
+                            .font(DoggoTextStyle.caption)
+                            .foregroundStyle(DoggoColor.inkMuted)
+                    }
+                } else {
+                    Button {
+                        editedUsername = authProvider.currentUsername ?? ""
+                        showEditUsername = true
+                    } label: {
+                        row(icon: "person.fill", title: "Username", value: authProvider.currentUsername ?? "")
+                    }
                 }
             }
 
@@ -78,6 +92,14 @@ struct SettingsView: View {
                     Label("Location", systemImage: "location.fill")
                     Spacer()
                     Text(locationStatusText)
+                        .foregroundStyle(DoggoColor.inkMuted)
+                }
+                VStack(alignment: .leading, spacing: DoggoSpacing.xs) {
+                    Toggle(isOn: Binding(get: { neighborhoodShare }, set: handleNeighborhoodToggle)) {
+                        Label("Neighborhood map", systemImage: "map.fill")
+                    }
+                    Text("Show your name and pack totals by neighborhood — never exact spots.")
+                        .font(DoggoTextStyle.caption)
                         .foregroundStyle(DoggoColor.inkMuted)
                 }
             }
@@ -120,6 +142,27 @@ struct SettingsView: View {
         }
     }
 
+    /// On → publish current aggregates; off → delete everything this
+    /// person ever published (deterministic record names make withdrawal a
+    /// real delete, not a soft hide). Either way this counts as having
+    /// answered the map's one-time consent ask.
+    private func handleNeighborhoodToggle(_ newValue: Bool) {
+        neighborhoodShare = newValue
+        hasSeenNeighborhoodConsent = true
+        let allCatches = (try? modelContext.fetch(FetchDescriptor<CaughtDog>())) ?? []
+        Task {
+            if newValue {
+                await NeighborhoodPublisher.publishIfNeeded(
+                    catches: allCatches,
+                    displayName: authProvider.currentUsername,
+                    teamPlayerID: authProvider.teamPlayerID
+                )
+            } else {
+                await NeighborhoodPublisher.withdrawAll(teamPlayerID: authProvider.teamPlayerID)
+            }
+        }
+    }
+
     private var locationStatusText: String {
         switch locationProvider.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways: "Allowed"
@@ -145,6 +188,12 @@ struct SettingsView: View {
         for dog in allCatches {
             MedicationReminder.cancelAll(for: dog)
         }
+        // Deleting the account also withdraws this person's public
+        // neighborhood-map records — fire-and-forget; the dismiss doesn't
+        // wait on the network.
+        let teamPlayerID = authProvider.teamPlayerID
+        Task { await NeighborhoodPublisher.withdrawAll(teamPlayerID: teamPlayerID) }
+        neighborhoodShare = false
         try? modelContext.delete(model: CaughtDog.self)
         try? modelContext.delete(model: UserProfile.self)
         authProvider.signOut()

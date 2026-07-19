@@ -25,10 +25,23 @@ enum ScoutExpression: Equatable {
 struct ScoutMascot: View {
     var expression: ScoutExpression = .idle
     var size: CGFloat = 140
-    /// Guardian Mode only — a small medal at the collar line. Drawn in the
-    /// same layer as the collar (outside `headGroup`) so it stays level when
-    /// the head tilts for `.curious`, same reasoning as the collar itself.
+    /// Guardian Mode only — replaces the plain collar with the guardian
+    /// ribbon: a marigold-dark arc slung under the chin, tied with a small
+    /// white knot. Geometry is verbatim from the "Guardian Paywall.dc.html"
+    /// prototype's own SVG (a 104x102 overlay: `M18,85 Q52,102 86,85`,
+    /// 10pt round-capped stroke in #E08E0B, plus a knot circle at (52,100)
+    /// r=7, white filled with a 3pt stroke). Drawn outside `headGroup` so
+    /// it stays level when the head tilts for `.curious`, same reasoning as
+    /// the collar it replaces.
     var wearsGuardianMedal: Bool = false
+    /// 0 = undrawn, 1 = fully drawn (default, so every pre-existing call
+    /// site is unaffected). The ribbon is a trimmed stroke specifically so
+    /// this reproduces the prototype's stroke-dashoffset draw-on.
+    var ribbonDrawProgress: CGFloat = 1
+    /// The knot's own pop (prototype: scale 0 -> 1.3 -> 1, 0.4s, 1.0s in).
+    /// Lives here rather than being positioned by the caller so the knot
+    /// can't drift out of register with the arc it ties.
+    var ribbonKnotScale: CGFloat = 1
 
     @State private var curiousOscillate = false
 
@@ -72,16 +85,28 @@ struct ScoutMascot: View {
         .onAppear { curiousOscillate = true }
     }
 
-    /// Diagonal marigold sash across the collar line, reading "GUARDIAN" —
-    /// matches the design prototype exactly (a ribbon, not a small badge).
+    /// The guardian ribbon — see `wearsGuardianMedal` for the extracted
+    /// geometry this reproduces. Everything is expressed in the prototype's
+    /// own 104x102 space and scaled by `u`, so the arc, its stroke weight,
+    /// and the knot all stay in proportion at any `size`.
     private var guardianRibbon: some View {
-        Text("GUARDIAN")
-            .font(.system(size: size * 0.09, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
-            .frame(width: size * 0.9, height: size * 0.16)
-            .background(DoggoColor.marigold)
-            .rotationEffect(.degrees(-16))
-            .offset(y: size * 0.34)
+        let u = size / 104
+        return ZStack(alignment: .topLeading) {
+            RibbonArc()
+                .trim(from: 0, to: ribbonDrawProgress)
+                .stroke(
+                    DoggoColor.marigoldDark,
+                    style: StrokeStyle(lineWidth: 10 * u, lineCap: .round)
+                )
+
+            Circle()
+                .fill(.white)
+                .overlay(Circle().strokeBorder(DoggoColor.marigoldDark, lineWidth: 3 * u))
+                .frame(width: 14 * u, height: 14 * u)
+                .scaleEffect(ribbonKnotScale)
+                .offset(x: 45 * u, y: 93 * u)   // centers a 14u knot on (52,100)
+        }
+        .frame(width: size, height: size)
     }
 
     private var headGroup: some View {
@@ -197,6 +222,21 @@ struct ScoutMascot: View {
                 .rotationEffect(.degrees(180))
                 .offset(y: size * 0.15)
         }
+    }
+}
+
+/// The ribbon's arc, in the prototype's 104x102 coordinate space:
+/// `M18,85 Q52,102 86,85` — a shallow quadratic slung under the chin.
+private struct RibbonArc: Shape {
+    func path(in rect: CGRect) -> Path {
+        let sx = rect.width / 104, sy = rect.height / 102
+        var path = Path()
+        path.move(to: CGPoint(x: 18 * sx, y: 85 * sy))
+        path.addQuadCurve(
+            to: CGPoint(x: 86 * sx, y: 85 * sy),
+            control: CGPoint(x: 52 * sx, y: 102 * sy)
+        )
+        return path
     }
 }
 

@@ -165,6 +165,8 @@ final class CameraService: NSObject {
         guard hasCameraInput else { return nil }
 
         let wantsMovie = liveMovie && isLivePhotoCaptureSupported
+        // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
+        print("[LivePhoto] capture: toggleOn=\(liveMovie) supported=\(isLivePhotoCaptureSupported) wantsMovie=\(wantsMovie)")
         let movieURL = wantsMovie ? FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString).appendingPathExtension("mov") : nil
 
@@ -317,6 +319,8 @@ final class CameraService: NSObject {
         }
 
         session.commitConfiguration()
+        // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
+        print("[LivePhoto] config: device=\(activeDevice?.deviceType.rawValue ?? "none") hasInput=\(hasCameraInput) supported=\(isLivePhotoCaptureSupported) enabled=\(photoOutput.isLivePhotoCaptureEnabled)")
     }
 
     /// Builds `zoomContext` and opens the camera at the "1x" the user
@@ -405,6 +409,8 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         resolvedSettings: AVCaptureResolvedPhotoSettings,
         error: Error?
     ) {
+        // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
+        print("[LivePhoto] movie callback: error=\(error.map(String.init(describing:)) ?? "nil") duration=\(duration.seconds)s")
         let movie: LivePhotoMovie? = error == nil
             ? LivePhotoMovie(url: outputFileURL, photoDisplayTime: photoDisplayTime)
             : nil

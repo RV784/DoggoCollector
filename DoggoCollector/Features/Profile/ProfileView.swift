@@ -8,7 +8,7 @@ import SwiftData
 
 struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(UsernameAuthProvider.self) private var authProvider
+    @Environment(GameCenterAuthProvider.self) private var authProvider
     @Query private var catches: [CaughtDog]
 
     private let mechanic = PackCollectorMechanic()

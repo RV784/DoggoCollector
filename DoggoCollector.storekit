@@ -1,0 +1,38 @@
+{
+  "identifier" : "C3D1F0A2-7B48-4E19-9D2A-4F6E8B0C5A11",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "8E2A6C41-5D93-4B7F-A0E8-1C9D3F5B7A22",
+      "localizations" : [
+        {
+          "description" : "Your first six wards are free. This unlocks unlimited dogs — dossiers, care logs, medication reminders, and shelter passes — once, forever.",
+          "displayName" : "Guardian Mode — Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.DoggoCollector.guardian.lifetime",
+      "referenceName" : "Guardian Lifetime Unlock",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

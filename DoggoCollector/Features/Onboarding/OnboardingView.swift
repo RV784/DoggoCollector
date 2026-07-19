@@ -10,7 +10,7 @@ import SwiftUI
 import SwiftData
 
 struct OnboardingView: View {
-    @Environment(UsernameAuthProvider.self) private var authProvider
+    @Environment(GameCenterAuthProvider.self) private var authProvider
     var onComplete: () -> Void
 
     @State private var username: String = ""
@@ -81,5 +81,5 @@ struct OnboardingView: View {
 
 #Preview {
     OnboardingView(onComplete: {})
-        .environment(UsernameAuthProvider(modelContext: try! ModelContainer(for: UserProfile.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)).mainContext))
+        .environment(GameCenterAuthProvider(local: UsernameAuthProvider(modelContext: try! ModelContainer(for: UserProfile.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)).mainContext)))
 }

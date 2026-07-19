@@ -3,7 +3,12 @@
 //  DoggoCollector
 //
 //  Dark "trading card" share sheet: pick a card-back color, preview the
-//  exportable card + metadata block, then Share to Story / Save / Copy link.
+//  exportable card + metadata block, then Share to Story / Save / Share.
+//  No link actions: the doggocollector:// deep link had no registered
+//  scheme or handler anywhere (a dead string for recipients), and the
+//  doggocollector.app display URL was a domain that doesn't exist — both
+//  cut (2026-07-17, same honesty principle as decision #13's removed fake
+//  open-hours) until the Phase 2 backend gives links somewhere to land.
 //
 
 import SwiftUI
@@ -25,11 +30,10 @@ struct ShareView: View {
     let dog: CaughtDog
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(UsernameAuthProvider.self) private var authProvider
+    @Environment(GameCenterAuthProvider.self) private var authProvider
     @State private var selectedColorway: CardColorway = .peach
     @State private var isActivitySheetPresented = false
     @State private var renderedImage: UIImage?
-    @State private var didCopyLink = false
     @State private var didSavePhoto = false
     @State private var insight: DogInsight?
 
@@ -65,8 +69,6 @@ struct ShareView: View {
                 PillButton(title: "Share to Story", systemImage: "camera.fill", action: shareToInstagramStory)
                 HStack {
                     textAction(didSavePhoto ? "Saved!" : "Save photo", action: savePhoto)
-                    Spacer()
-                    textAction(didCopyLink ? "Link copied!" : "Copy link", action: copyLink)
                     Spacer()
                     textAction("Share") { isActivitySheetPresented = true }
                 }
@@ -158,15 +160,9 @@ struct ShareView: View {
                 Image(systemName: "pawprint.circle.fill")
                     .font(.system(size: 28))
                     .foregroundStyle(DoggoColor.marigold)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("DoggoCollector — Catch Real Dogs")
-                        .font(DoggoTextStyle.caption)
-                        .foregroundStyle(DoggoColor.ink)
-                    Text(ShareLinkBuilder.deepLinkURL(for: dog).absoluteString.replacingOccurrences(of: "doggocollector://catch/", with: "doggocollector.app/\(authProvider.currentUsername ?? "scout")/\(dog.name.lowercased())"))
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(DoggoColor.inkMuted)
-                        .lineLimit(1)
-                }
+                Text("DoggoCollector — Catch Real Dogs")
+                    .font(DoggoTextStyle.caption)
+                    .foregroundStyle(DoggoColor.ink)
             }
         }
         .padding(DoggoSpacing.lg)
@@ -211,7 +207,7 @@ struct ShareView: View {
     }
 
     private var shareItems: [Any] {
-        var items: [Any] = [ShareLinkBuilder.caption(for: dog), ShareLinkBuilder.deepLinkURL(for: dog)]
+        var items: [Any] = [ShareLinkBuilder.caption(for: dog)]
         if let renderedImage {
             items.insert(renderedImage, at: 0)
         }
@@ -248,12 +244,4 @@ struct ShareView: View {
         }
     }
 
-    private func copyLink() {
-        UIPasteboard.general.string = ShareLinkBuilder.deepLinkURL(for: dog).absoluteString
-        didCopyLink = true
-        Task {
-            try? await Task.sleep(for: .seconds(1.6))
-            didCopyLink = false
-        }
-    }
 }

@@ -210,7 +210,11 @@ final class CameraViewModel {
         // deferred-patch pattern as the location label above.
         if let movieTask {
             Task { @MainActor in
-                guard let movie = await movieTask.value else { return }
+                guard let movie = await movieTask.value else {
+                    // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
+                    print("[LivePhoto] patch task: movie promise resolved nil")
+                    return
+                }
                 defer { try? FileManager.default.removeItem(at: movie.url) }
                 // Two tiers from the same raw capture — .full for Card
                 // Detail/Celebration, .tile for the Pack grid (added after
@@ -232,10 +236,13 @@ final class CameraViewModel {
                     assetIdentifier: dog.id.uuidString,
                     tier: .tile
                 )
+                // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
+                print("[LivePhoto] patch task: transcode full=\(fullData?.count ?? -1)B tile=\(tileData?.count ?? -1)B")
                 guard fullData != nil || tileData != nil else { return }
                 dog.livePhotoMovieData = fullData
                 dog.livePhotoMovieTileData = tileData
                 LiveMovieStore.evict(id: dog.id.uuidString)
+                print("[LivePhoto] patch task: saved onto dog \(dog.name)")
             }
         }
 

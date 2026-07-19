@@ -20,7 +20,7 @@ private enum PackTab: Hashable {
 }
 
 struct CollectionView: View {
-    @Environment(UsernameAuthProvider.self) private var authProvider
+    @Environment(GameCenterAuthProvider.self) private var authProvider
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \CaughtDog.caughtAt, order: .reverse) private var catches: [CaughtDog]
@@ -43,6 +43,9 @@ struct CollectionView: View {
     // softer springs used for ordinary UI feedback elsewhere in the app.
     private let morphAnimation: Animation = .spring(response: 0.4, dampingFraction: 1.0, blendDuration: 0)
     private let morphOpenAnimation: Animation = .spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
+
+    // TEMP-PAYWALL-PREVIEW: remove with the matching .sheet below.
+    @State private var tempPaywallPreview = ProcessInfo.processInfo.arguments.contains("-previewPaywall")
 
     var body: some View {
         NavigationStack {
@@ -140,9 +143,19 @@ struct CollectionView: View {
             .navigationDestination(for: PastWardsDestination.self) { _ in PastWardsView() }
             .navigationDestination(for: TodaysCareDestination.self) { _ in TodaysCareView() }
         }
+        // TEMP-PAYWALL-PREVIEW
+        .sheet(isPresented: $tempPaywallPreview) {
+            if let dog = catches.first {
+                GuardianPledgeSheet(
+                    dog: dog,
+                    wardCount: ProcessInfo.processInfo.arguments.contains("-paidPath") ? 6 : 0
+                ) {}
+            }
+        }
         .task {
             await PhotoStoreRepair.run(dogs: catches, context: modelContext)
             await MedicationReminder.sweep(dogs: catches)
+            await publishNeighborhoodPresence()
         }
         // With CloudKit sync (decision #18), schedules can now arrive on
         // this device from another one — a sweep only at launch would miss
@@ -152,8 +165,22 @@ struct CollectionView: View {
         // scope for this pass.
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
-            Task { await MedicationReminder.sweep(dogs: catches) }
+            Task {
+                await MedicationReminder.sweep(dogs: catches)
+                await publishNeighborhoodPresence()
+            }
         }
+    }
+
+    /// Consent-gated, hash-debounced — cheap to fire from every lifecycle
+    /// edge (launch, foregrounding, and each catch landing in the grid);
+    /// NeighborhoodPublisher itself decides whether anything changed.
+    private func publishNeighborhoodPresence() async {
+        await NeighborhoodPublisher.publishIfNeeded(
+            catches: catches,
+            displayName: authProvider.currentUsername,
+            teamPlayerID: authProvider.teamPlayerID
+        )
     }
 
     private var header: some View {
@@ -357,6 +384,8 @@ struct CollectionView: View {
 
     private func returnToIdle() {
         withAnimation(morphAnimation) { surfaceState = .idle }
+        // A fresh catch may have changed this device's locality aggregates.
+        Task { await publishNeighborhoodPresence() }
     }
 }
 
@@ -368,6 +397,6 @@ struct TodaysCareDestination: Hashable {}
 
 #Preview {
     CollectionView()
-        .environment(UsernameAuthProvider(modelContext: try! ModelContainer(for: UserProfile.self, CaughtDog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)).mainContext))
+        .environment(GameCenterAuthProvider(local: UsernameAuthProvider(modelContext: try! ModelContainer(for: UserProfile.self, CaughtDog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)).mainContext)))
         .modelContainer(for: [UserProfile.self, CaughtDog.self], inMemory: true)
 }

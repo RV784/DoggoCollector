@@ -46,6 +46,10 @@ enum HandoverMaterializer {
         dog.breedUserEdited = package.breedUserEdited
         dog.livePhotoMovieData = acceptance.movieData
         dog.livePhotoMovieTileData = acceptance.movieTileData
+        // Marks this ward as exempt from the freemium free-slot count
+        // (decision #25) — accepting a handover isn't the same act as
+        // pledging, and shouldn't burn the recipient's free allowance.
+        dog.receivedViaHandover = true
         context.insert(dog)
 
         // scheduleId references get remapped: MedicationSchedule.id is

@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 private enum DetailTab: Hashable {
     case sniff, dossier
@@ -11,6 +12,10 @@ private enum DetailTab: Hashable {
 
 struct CardDetailView: View {
     @Bindable var dog: CaughtDog
+
+    // Only for the freemium gate's free-ward count (decision #25) — every
+    // other read in this view goes through `dog` directly.
+    @Query private var catches: [CaughtDog]
 
     @Environment(\.dismiss) private var dismiss
     @State private var showShare = false
@@ -27,6 +32,11 @@ struct CardDetailView: View {
 
     private var serialText: String {
         "#" + String(format: "%03d", dog.serialNumber)
+    }
+
+    /// Direct pledges only — a received Handover doesn't burn a free slot.
+    private var wardCount: Int {
+        catches.filter { $0.isWard && !$0.receivedViaHandover }.count
     }
 
     var body: some View {
@@ -120,7 +130,7 @@ struct CardDetailView: View {
             ShareView(dog: dog)
         }
         .sheet(isPresented: $showPledgeSheet) {
-            GuardianPledgeSheet(dog: dog) {
+            GuardianPledgeSheet(dog: dog, wardCount: wardCount) {
                 toastMessage = "You're now \(dog.name)'s Guardian \u{2713}"
                 detailTab = .dossier
             }

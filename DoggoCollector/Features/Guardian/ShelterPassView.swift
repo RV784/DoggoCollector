@@ -16,7 +16,7 @@ struct ShelterPassView: View {
     let dog: CaughtDog
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(UsernameAuthProvider.self) private var authProvider
+    @Environment(GameCenterAuthProvider.self) private var authProvider
     @State private var pdfURL: URL?
     @State private var showActivitySheet = false
 

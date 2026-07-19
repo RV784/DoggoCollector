@@ -72,6 +72,13 @@ final class CaughtDog {
     /// whether the overflow menu's "Mark as handed over" action appears.
     var handoverOfferURLString: String? = nil
 
+    /// True for a dog materialized by HandoverMaterializer (decision #18)
+    /// rather than pledged directly on this account. The freemium gate
+    /// (decision #25) counts only direct pledges toward the free-6 limit —
+    /// receiving a ward someone else already cares for must not silently
+    /// consume the recipient's free slots.
+    var receivedViaHandover: Bool = false
+
     /// Transcoded square live-photo companion movie (silent, ~3s, HEVC,
     /// 720x720) — nil when the catch wasn't a live photo (toggle off,
     /// Simulator, capture/transcode failure, or a pre-feature catch).

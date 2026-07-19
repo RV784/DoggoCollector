@@ -35,6 +35,22 @@ enum DoggoColor {
 
     static let sky = Color(hex: 0xB7E1EA)
     static let sage = Color(hex: 0xCDE8BE)
+    /// Guardian paywall v2's fourth unlock-row tile (Handover) — decision #25.
+    static let lavender = Color(hex: 0xD6CCEF)
+
+    // Guardian paywall v2 (decision #25) — extracted verbatim from the
+    // "Guardian Paywall.dc.html" prototype. Its type/greys are a shade
+    // finer than the app's general inkMuted scale (three distinct muted
+    // greys at 13.5/12/10.5pt), so they get their own tokens rather than
+    // being approximated onto existing ones.
+    static let paywallRowBorder = Color(hex: 0xE7D9BE)
+    static let paywallRowText   = Color(hex: 0x6E6150)
+    static let paywallFaint     = Color(hex: 0xA6957B)
+    static let paywallFainter   = Color(hex: 0xB7A88F)
+    static let paywallListBg    = Color(hex: 0xF8F1E2)
+    static let iconBell     = Color(hex: 0x3E7A34)
+    static let iconPrinter  = Color(hex: 0x2A6B78)
+    static let iconHandover = Color(hex: 0x6B5A96)
 
     static let heartPink = Color(hex: 0xF2777B)
 

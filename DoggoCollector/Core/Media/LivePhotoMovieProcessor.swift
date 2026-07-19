@@ -60,6 +60,8 @@ enum LivePhotoMovieProcessor {
         do {
             return try await transcodeSquareThrowing(input: input, assetIdentifier: assetIdentifier, tier: tier)
         } catch {
+            // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
+            print("[LivePhoto] transcode(\(tier)) failed: \(error)")
             return nil
         }
     }

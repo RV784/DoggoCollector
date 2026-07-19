@@ -13,8 +13,12 @@ struct DoggoCollectorApp: App {
     // pure-SwiftUI hook on this SDK.
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     private let modelContainer: ModelContainer
-    @State private var authProvider: UsernameAuthProvider
+    @State private var authProvider: GameCenterAuthProvider
     @State private var shareCoordinator = CloudKitShareCoordinator.shared
+    // Constructed at launch so its Transaction.updates listener is alive
+    // from the start (refunds/Ask-to-Buy approvals can arrive any time),
+    // per Apple's StoreKit 2 guidance — see GuardianEntitlementStore.
+    @State private var entitlements = GuardianEntitlementStore()
 
     init() {
         do {
@@ -31,13 +35,18 @@ struct DoggoCollectorApp: App {
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
-        _authProvider = State(initialValue: UsernameAuthProvider(modelContext: modelContainer.mainContext))
+        // Game Center identity wrapping the local username flow (decision:
+        // GC alias wins when authenticated; typed-username onboarding is
+        // the fallback, not the front door).
+        _authProvider = State(initialValue: GameCenterAuthProvider(
+            local: UsernameAuthProvider(modelContext: modelContainer.mainContext)))
     }
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(authProvider)
+                .environment(entitlements)
                 // The app has no designed dark theme anywhere — every
                 // DoggoColor value is a hardcoded light-mode hex. Without
                 // this, native system-styled text (TextField input/

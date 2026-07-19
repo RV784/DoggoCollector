@@ -5,9 +5,13 @@
 
 import SwiftUI
 
+// No "I already have a pack" restore link: it used to lead to the same
+// onboarding as "Get started" (Phase 1 has no accounts to restore), which
+// read as a broken promise. With CloudKit private sync (decision #18) an
+// existing pack restores automatically via the device's iCloud account —
+// no button needed. A real sign-in entry point returns with Phase 2 auth.
 struct LandingView: View {
     var onGetStarted: () -> Void
-    var onAlreadyHavePack: () -> Void
 
     var body: some View {
         ZStack {
@@ -34,10 +38,7 @@ struct LandingView: View {
 
                 Spacer()
 
-                VStack(spacing: DoggoSpacing.md) {
-                    PillButton(title: "Get started", action: onGetStarted)
-                    TextLinkButton(title: "I already have a pack", action: onAlreadyHavePack)
-                }
+                PillButton(title: "Get started", action: onGetStarted)
             }
             .padding(DoggoSpacing.xl)
         }
@@ -45,5 +46,5 @@ struct LandingView: View {
 }
 
 #Preview {
-    LandingView(onGetStarted: {}, onAlreadyHavePack: {})
+    LandingView(onGetStarted: {})
 }
