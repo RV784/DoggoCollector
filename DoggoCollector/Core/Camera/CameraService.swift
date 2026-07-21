@@ -106,6 +106,21 @@ final class CameraService: NSObject {
     /// session while this is nonzero (would truncate/abort them).
     private var pendingLivePhotoMovies = 0
     private var wantsStop = false
+    /// Strong self-reference held only while live-photo movies are in flight.
+    /// The camera panel (which owns CameraViewModel -> this CameraService via
+    /// @State) is removed from the hierarchy the instant a catch morphs to the
+    /// celebration card — ~1.5-2s BEFORE the live-photo movie delegate callback
+    /// fires. Without this, CameraService is deallocated on that teardown, the
+    /// movie callback never lands, the AsyncStream continuation registered in
+    /// `movieContinuationsByID` is dropped without a yield, `movieTask` resolves
+    /// nil, and the movie is silently lost (the whole "fresh catches never get a
+    /// live preview" bug). Self-retaining keeps the delegate + its session/
+    /// photoOutput/continuations alive until `finishMovie` drains the last
+    /// pending movie, then releases — a bounded lifetime extension, not a leak.
+    /// (AVCapturePhotoOutput's own delegate retention is undocumented for this
+    /// case; Apple's AVCam sample keeps its own strong ref for exactly this
+    /// reason. Guarded by `continuationLock`, like every field around it.)
+    private var pipelineKeepAlive: CameraService?
 
     func requestAccessAndConfigure() async {
         isAuthorized = await Self.requestAccess()
@@ -147,11 +162,31 @@ final class CameraService: NSObject {
         continuationLock.lock()
         let shouldForceStop = wantsStop
         wantsStop = false
+        // The movie delegate callback never arrived (app backgrounded
+        // mid-processing, a rare AVFoundation hiccup). Drain everything so the
+        // pipeline doesn't hang or leak: resolve any dangling movie streams
+        // with nil (so awaiting `movieTask`/patch tasks finish cleanly instead
+        // of hanging forever), zero the pending count, and release the
+        // self-pin (added for the deferred-teardown fix) so `self` can
+        // actually deallocate.
+        let danglingContinuations = Array(movieContinuationsByID.values)
+        movieContinuationsByID.removeAll()
+        pendingLivePhotoMovies = 0
+        let keepAliveToRelease = pipelineKeepAlive
+        pipelineKeepAlive = nil
         continuationLock.unlock()
-        guard shouldForceStop else { return }
-        sessionQueue.async { [weak self] in
-            self?.session.stopRunning()
+
+        for continuation in danglingContinuations {
+            continuation.yield(nil)
+            continuation.finish()
         }
+
+        if shouldForceStop {
+            sessionQueue.async { [weak self] in
+                self?.session.stopRunning()
+            }
+        }
+        withExtendedLifetime(keepAliveToRelease) {}
     }
 
     /// Whistles, captures a still, and — if `liveMovie` is true and the
@@ -165,8 +200,6 @@ final class CameraService: NSObject {
         guard hasCameraInput else { return nil }
 
         let wantsMovie = liveMovie && isLivePhotoCaptureSupported
-        // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
-        print("[LivePhoto] capture: toggleOn=\(liveMovie) supported=\(isLivePhotoCaptureSupported) wantsMovie=\(wantsMovie)")
         let movieURL = wantsMovie ? FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString).appendingPathExtension("mov") : nil
 
@@ -209,6 +242,10 @@ final class CameraService: NSObject {
                 continuationLock.lock()
                 movieContinuationsByID[settings.uniqueID] = streamContinuation
                 pendingLivePhotoMovies += 1
+                // Pin the pipeline alive for the whole in-flight window (see
+                // pipelineKeepAlive) — set on every increment; the matching
+                // release happens only when the count returns to 0.
+                pipelineKeepAlive = self
                 continuationLock.unlock()
                 movieTask = Task {
                     var iterator = stream.makeAsyncIterator()
@@ -263,11 +300,24 @@ final class CameraService: NSObject {
         pendingLivePhotoMovies = max(0, pendingLivePhotoMovies - 1)
         let shouldStop = wantsStop && pendingLivePhotoMovies == 0
         if shouldStop { wantsStop = false }
+        // Release the self-pin once the last in-flight movie has drained. If
+        // the owning CameraViewModel/view is already gone, this is the last
+        // strong reference, so `self` deallocates right after this method
+        // returns — deliberately deferred to a local so it isn't released
+        // while still holding the lock.
+        let keepAliveToRelease: CameraService? = pendingLivePhotoMovies == 0 ? pipelineKeepAlive : nil
+        if pendingLivePhotoMovies == 0 { pipelineKeepAlive = nil }
         continuationLock.unlock()
-        guard shouldStop else { return }
-        sessionQueue.async { [weak self] in
-            self?.session.stopRunning()
+
+        if shouldStop {
+            sessionQueue.async { [weak self] in
+                self?.session.stopRunning()
+            }
         }
+        // Hold the pin's strong ref until the very end of this method, past
+        // every use of `self` above — so nil-ing `pipelineKeepAlive` can
+        // never deallocate `self` out from under the code still running here.
+        withExtendedLifetime(keepAliveToRelease) {}
     }
 
     private static func requestAccess() async -> Bool {
@@ -319,8 +369,6 @@ final class CameraService: NSObject {
         }
 
         session.commitConfiguration()
-        // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
-        print("[LivePhoto] config: device=\(activeDevice?.deviceType.rawValue ?? "none") hasInput=\(hasCameraInput) supported=\(isLivePhotoCaptureSupported) enabled=\(photoOutput.isLivePhotoCaptureEnabled)")
     }
 
     /// Builds `zoomContext` and opens the camera at the "1x" the user
@@ -409,8 +457,6 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         resolvedSettings: AVCaptureResolvedPhotoSettings,
         error: Error?
     ) {
-        // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
-        print("[LivePhoto] movie callback: error=\(error.map(String.init(describing:)) ?? "nil") duration=\(duration.seconds)s")
         let movie: LivePhotoMovie? = error == nil
             ? LivePhotoMovie(url: outputFileURL, photoDisplayTime: photoDisplayTime)
             : nil

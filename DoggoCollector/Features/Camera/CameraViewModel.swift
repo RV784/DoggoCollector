@@ -210,11 +210,7 @@ final class CameraViewModel {
         // deferred-patch pattern as the location label above.
         if let movieTask {
             Task { @MainActor in
-                guard let movie = await movieTask.value else {
-                    // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
-                    print("[LivePhoto] patch task: movie promise resolved nil")
-                    return
-                }
+                guard let movie = await movieTask.value else { return }
                 defer { try? FileManager.default.removeItem(at: movie.url) }
                 // Two tiers from the same raw capture — .full for Card
                 // Detail/Celebration, .tile for the Pack grid (added after
@@ -236,13 +232,17 @@ final class CameraViewModel {
                     assetIdentifier: dog.id.uuidString,
                     tier: .tile
                 )
-                // TEMP diagnostics (live-photo regression hunt, 2026-07-17)
-                print("[LivePhoto] patch task: transcode full=\(fullData?.count ?? -1)B tile=\(tileData?.count ?? -1)B")
                 guard fullData != nil || tileData != nil else { return }
                 dog.livePhotoMovieData = fullData
                 dog.livePhotoMovieTileData = tileData
+                // Persist explicitly rather than leaning on autosave — without
+                // this the movie is observed in-session (Card Detail sees the
+                // @Model mutation) but can be lost on relaunch before autosave
+                // flushes. Same reasoning could apply to the location patch,
+                // but that one is cosmetic; a missing live preview is the whole
+                // point of the feature.
+                try? modelContext.save()
                 LiveMovieStore.evict(id: dog.id.uuidString)
-                print("[LivePhoto] patch task: saved onto dog \(dog.name)")
             }
         }
 
