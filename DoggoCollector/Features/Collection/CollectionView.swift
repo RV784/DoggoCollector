@@ -134,8 +134,12 @@ struct CollectionView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            // The gallery replaces CardDetailView as a tapped dog's screen.
+            // CardDetailView is retained in the codebase (Scout's Sniff and
+            // the insight panel get repurposed from it later), just no longer
+            // routed to.
             .navigationDestination(for: CaughtDog.self) { dog in
-                CardDetailView(dog: dog)
+                DogGalleryView(dog: dog)
             }
             .navigationDestination(for: ProfileDestination.self) { _ in ProfileView() }
             .navigationDestination(for: CareDestination.self) { _ in CareView() }
@@ -153,6 +157,10 @@ struct CollectionView: View {
             }
         }
         .task {
+            // Order matters: lift legacy single photos into the gallery
+            // first, so the repair pass below sees (and can shrink) the
+            // DogPhoto rows it just created rather than only the legacy field.
+            await GalleryMigration.run(dogs: catches, context: modelContext)
             await PhotoStoreRepair.run(dogs: catches, context: modelContext)
             await MedicationReminder.sweep(dogs: catches)
             await publishNeighborhoodPresence()
@@ -226,7 +234,7 @@ struct CollectionView: View {
                 ForEach(catches) { dog in
                     NavigationLink(value: dog) {
                         DoggoCardView(
-                            image: DogPhoto.image(from: dog.imageData, size: .tile, cacheKey: dog.id.uuidString),
+                            image: PhotoDecoder.image(from: dog.coverImageData, size: .tile, cacheKey: dog.coverCacheKey),
                             name: dog.name,
                             breedLabel: dog.breedLabel,
                             serialNumber: dog.serialNumber,
@@ -238,8 +246,9 @@ struct CollectionView: View {
                             // 720x720 movie for catches made before that
                             // field existed, rather than showing no movie
                             // at all for them.
-                            liveMovieURL: dog.livePhotoMovieTileData.flatMap { LiveMovieStore.url(for: $0, id: dog.id.uuidString, tier: .tile) }
-                                ?? dog.livePhotoMovieData.flatMap { LiveMovieStore.url(for: $0, id: dog.id.uuidString, tier: .full) }
+                            // Every live photo in this dog's gallery, cheap
+                            // .tile transcodes, played in sequence on a loop.
+                            slides: dog.gallerySlides(tier: .tile)
                         )
                     }
                     .buttonStyle(.plain)

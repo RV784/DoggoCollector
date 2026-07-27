@@ -183,6 +183,21 @@ final class CameraViewModel {
         dog.classifiedBreedRaw = breed?.breedName
         dog.breedConfidence = breed?.confidence
         modelContext.insert(dog)
+
+        // The catch photo IS the gallery's first entry (spec: it stops being
+        // a special-cased field). `imageData` above is still written so a
+        // build that rolls back, and every not-yet-updated read path, still
+        // finds a photo — GalleryMigration treats it as the source of truth
+        // only for dogs that predate the gallery.
+        let coverPhoto = DogPhoto(
+            imageData: finalImage.jpegData(compressionQuality: 0.85) ?? Data(),
+            dateTaken: dog.caughtAt,
+            isCover: true,
+            sortIndex: 0,
+            dog: dog
+        )
+        modelContext.insert(coverPhoto)
+
         try? modelContext.save()
         lastCatchFailed = false
 
@@ -235,6 +250,12 @@ final class CameraViewModel {
                 guard fullData != nil || tileData != nil else { return }
                 dog.livePhotoMovieData = fullData
                 dog.livePhotoMovieTileData = tileData
+                // The gallery entry is what actually gets played now (the
+                // per-dog fields above are the legacy/fallback pair), so the
+                // movie has to land on the photo this capture created.
+                coverPhoto.livePhotoMovieData = fullData
+                coverPhoto.livePhotoMovieTileData = tileData
+                LiveMovieStore.evict(id: coverPhoto.id.uuidString)
                 // Persist explicitly rather than leaning on autosave — without
                 // this the movie is observed in-session (Card Detail sees the
                 // @Model mutation) but can be lost on relaunch before autosave
@@ -247,6 +268,80 @@ final class CameraViewModel {
         }
 
         return dog
+    }
+
+    /// Captures another photo **of a dog you already have** and appends it to
+    /// that dog's gallery — the camera button inside DogGalleryView. This is
+    /// the whole point of the gallery feature: caretakers photograph the same
+    /// dogs over months.
+    ///
+    /// Deliberately does NOT run `DogDetector`: you're photographing a dog
+    /// you've already identified and named, so a false negative would only
+    /// throw away a good photo. (The catch flow keeps detection — there it's
+    /// deciding whether a *new* dog exists at all.) Breed classification is
+    /// skipped for the same reason: this dog's breed is already settled, and
+    /// possibly user-corrected, which must never be overwritten.
+    @discardableResult
+    func capturePhotoForGallery(dog: CaughtDog, in modelContext: ModelContext, liveMovie: Bool) async -> DogPhoto? {
+        isCapturing = true
+        defer { isCapturing = false }
+
+        whistlePlayer.play()
+
+        async let captured = cameraService.capturePhoto(liveMovie: liveMovie)
+        async let whistleSettled: Void = { try? await Task.sleep(for: .milliseconds(180)) }()
+        let (result, _) = await (captured, whistleSettled)
+
+        let finalImage: UIImage
+        let movieTask: Task<LivePhotoMovie?, Never>?
+        if let result {
+            movieTask = result.movie
+            finalImage = result.still.croppedToSquare()
+        } else if let fallback = Self.simulatorFallbackImage() {
+            movieTask = nil
+            finalImage = fallback.croppedToSquare()
+        } else {
+            return nil
+        }
+
+        guard let jpeg = finalImage.jpegData(compressionQuality: 0.85) else { return nil }
+
+        // Appended, never promoted to cover — which photo represents the dog
+        // stays an explicit human choice (spec).
+        let nextIndex = (dog.sortedPhotos.last?.sortIndex ?? -1) + 1
+        let photo = DogPhoto(
+            imageData: jpeg,
+            dateTaken: .now,
+            isCover: false,
+            sortIndex: nextIndex,
+            dog: dog
+        )
+        modelContext.insert(photo)
+        try? modelContext.save()
+
+        // Same deferred, non-blocking movie patch as the catch flow — the
+        // photo is already saved and visible by the time this lands.
+        if let movieTask {
+            Task { @MainActor in
+                guard let movie = await movieTask.value else { return }
+                defer { try? FileManager.default.removeItem(at: movie.url) }
+                let fullData = await LivePhotoMovieProcessor.transcodeSquare(
+                    input: movie.url, photoDisplayTime: movie.photoDisplayTime,
+                    assetIdentifier: photo.id.uuidString, tier: .full
+                )
+                let tileData = await LivePhotoMovieProcessor.transcodeSquare(
+                    input: movie.url, photoDisplayTime: movie.photoDisplayTime,
+                    assetIdentifier: photo.id.uuidString, tier: .tile
+                )
+                guard fullData != nil || tileData != nil else { return }
+                photo.livePhotoMovieData = fullData
+                photo.livePhotoMovieTileData = tileData
+                try? modelContext.save()
+                LiveMovieStore.evict(id: photo.id.uuidString)
+            }
+        }
+
+        return photo
     }
 
     private static func simulatorFallbackImage() -> UIImage? {

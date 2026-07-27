@@ -1,5 +1,5 @@
 //
-//  DogPhoto.swift
+//  PhotoDecoder.swift
 //  DoggoCollector
 //
 //  Decodes CaughtDog/attachment photo data at (no larger than) the size a
@@ -11,11 +11,15 @@
 //  croppedToSquare() scale fix (see CameraViewModel.swift) is what caused
 //  the app's jetsam memory kills (see memory_crash_fixes.md).
 //
+//  Named `DogPhoto` until the multi-photo gallery landed — renamed because
+//  `DogPhoto` is now a real @Model (one photo in a dog's gallery), and this
+//  type was never a photo, only the thing that decodes one at a size tier.
+//
 
 import ImageIO
 import UIKit
 
-enum DogPhoto {
+enum PhotoDecoder {
     /// Pixel budgets for the app's display contexts (device points x 3).
     enum Size: CGFloat {
         case avatar = 128    // 34-56pt circles: TodaysCare, Wards, PastWards

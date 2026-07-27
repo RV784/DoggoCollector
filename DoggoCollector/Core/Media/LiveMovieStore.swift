@@ -4,7 +4,7 @@
 //
 //  AVPlayer needs a file URL, but a caught dog's live-photo movie bytes
 //  live in SwiftData (CaughtDog.livePhotoMovieData/livePhotoMovieTileData)
-//  — mirrors DogPhoto's role for photos, materializing bytes to a
+//  — mirrors PhotoDecoder's role for photos, materializing bytes to a
 //  Caches-directory file on demand so playback never has to reason about
 //  SwiftData directly. Caches/ is OS-purgeable and rebuilt from the
 //  SwiftData bytes on the next request, so there are no cleanup

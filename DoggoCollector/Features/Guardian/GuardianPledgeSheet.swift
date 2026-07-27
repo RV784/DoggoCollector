@@ -159,7 +159,7 @@ struct GuardianPledgeSheet: View {
     private var miniCard: some View {
         VStack(spacing: 6) {
             Group {
-                if let image = DogPhoto.image(from: dog.imageData, size: .tile, cacheKey: dog.id.uuidString) {
+                if let image = PhotoDecoder.image(from: dog.coverImageData, size: .tile, cacheKey: dog.coverCacheKey) {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()

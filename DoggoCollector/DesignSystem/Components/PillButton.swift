@@ -32,6 +32,12 @@ struct PillButton: View {
             .foregroundStyle(foregroundColor)
 //            .background(backgroundColor, in: Capsule())
             .glassEffect(.clear.tint(DoggoColor.marigold).interactive(), in: .rect(cornerRadius: DoggoRadius.pill))
+            // Without this the Button only hit-tests the label glyphs —
+            // `.frame(maxWidth: .infinity)` grows the layout but not the
+            // tappable region, so taps on the empty part of the pill fell
+            // straight through to whatever was underneath. Make the whole
+            // pill shape the hit target.
+            .contentShape(.rect(cornerRadius: DoggoRadius.pill))
         }
         .buttonStyle(ScalePressButtonStyle())
     }

@@ -125,7 +125,7 @@ struct ShareView: View {
 
     private var cardPreview: some View {
         DoggoCardView(
-            image: DogPhoto.image(from: dog.imageData, size: .card, cacheKey: dog.id.uuidString),
+            image: PhotoDecoder.image(from: dog.coverImageData, size: .card, cacheKey: dog.coverCacheKey),
             name: dog.name,
             breedLabel: dog.breedLabel,
             serialNumber: dog.serialNumber,

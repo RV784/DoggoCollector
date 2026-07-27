@@ -26,7 +26,7 @@ struct CatchCelebrationView: View {
     @State private var editBreedText = ""
     /// Gates the live-photo movie overlay until the pill→panel→card morph
     /// (decision #5) has settled — this card *is* the geometry-matched
-    /// element in that chain, and LoopingMovieView is UIKit-backed, the
+    /// element in that chain, and GalleryPlaybackView is UIKit-backed, the
     /// exact content class that broke the original morph. In practice the
     /// movie data doesn't even exist until CameraViewModel's deferred
     /// patch task lands (~2-4s post-shutter), so this mostly guards
@@ -96,15 +96,13 @@ struct CatchCelebrationView: View {
                     .transition(.opacity)
 
                     DoggoCardView(
-                        image: DogPhoto.image(from: dog.imageData, size: .card, cacheKey: dog.id.uuidString),
+                        image: PhotoDecoder.image(from: dog.coverImageData, size: .card, cacheKey: dog.coverCacheKey),
                         name: dog.name,
                         breedLabel: dog.breedLabel,
                         serialNumber: dog.serialNumber,
                         traits: dog.traits,
                         placeholderSeed: dog.id.hashValue,
-                        liveMovieURL: showLiveMovie
-                            ? dog.livePhotoMovieData.flatMap { LiveMovieStore.url(for: $0, id: dog.id.uuidString) }
-                            : nil
+                        slides: showLiveMovie ? dog.gallerySlides(tier: .full) : []
                     )
                     .matchedGeometryEffect(id: "catchSurface", in: morphNamespace)
                     .rotationEffect(.degrees(-3))

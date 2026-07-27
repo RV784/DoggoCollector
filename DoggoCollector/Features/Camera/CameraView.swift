@@ -14,7 +14,13 @@ import SwiftData
 
 struct CameraView: View {
     var onClose: () -> Void
-    var onCaught: (CaughtDog) -> Void
+    var onCaught: (CaughtDog) -> Void = { _ in }
+    /// When set, the shutter adds a photo to THIS dog's gallery instead of
+    /// attempting a new catch — the camera button inside DogGalleryView.
+    /// Detection is skipped on that path (see capturePhotoForGallery), so a
+    /// shot can't "miss"; `onAddedToGallery` fires instead of `onCaught`.
+    var galleryDog: CaughtDog? = nil
+    var onAddedToGallery: () -> Void = {}
 
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = CameraViewModel()
@@ -218,15 +224,11 @@ struct CameraView: View {
 
     private var bottomBar: some View {
         GlassEffectContainer {
-            HStack {
-                roundIconButton("chevron.left", action: onClose)
-
-                Spacer()
-
-                // Deliberately NOT glassed — a camera shutter's affordance is
-                // its solidity (Apple's own Camera app keeps a solid shutter
-                // in the glass era). Glassing the single most important
-                // control here would read as decoration.
+            ZStack {
+                // Shutter, dead-center. Deliberately NOT glassed — a camera
+                // shutter's affordance is its solidity (Apple's own Camera app
+                // keeps a solid shutter in the glass era). Glassing the single
+                // most important control here would read as decoration.
                 Button(action: handleShutter) {
                     Circle()
                         .fill(.white)
@@ -237,9 +239,34 @@ struct CameraView: View {
                 .buttonStyle(ScalePressButtonStyle())
                 .disabled(viewModel.isCapturing)
 
-                Spacer()
+                // Whistle (left) and flip-camera (right) flank the shutter at a
+                // fixed gap — spacing = shutter width + a gap on each side, so
+                // the two sit `DoggoSpacing.lg` clear of the shutter's edges.
+                // The whistle used to sit at the far trailing edge; moved in
+                // next to the shutter so both quick actions are within thumb
+                // reach of the capture button.
+                HStack(spacing: 68 + DoggoSpacing.lg * 2) {
+                    roundIconButton("speaker.wave.2.fill", action: viewModel.replayWhistle)
 
-                roundIconButton("speaker.wave.2.fill", action: viewModel.replayWhistle)
+                    // Flip only when there's a front camera to flip to (never
+                    // on Simulator) — a lot of people want a selfie with the
+                    // dog. The clear placeholder keeps the whistle at the same
+                    // offset from the shutter whether or not flip is available.
+                    if viewModel.cameraService.isCameraFlipSupported {
+                        roundIconButton("arrow.triangle.2.circlepath.camera.fill") {
+                            viewModel.cameraService.flipCamera()
+                        }
+                        .disabled(viewModel.isCapturing)
+                    } else {
+                        Color.clear.frame(width: 44, height: 44)
+                    }
+                }
+
+                // Back sits on the far left, clear of the centered cluster.
+                HStack {
+                    roundIconButton("chevron.left", action: onClose)
+                    Spacer()
+                }
             }
         }
     }
@@ -255,6 +282,13 @@ struct CameraView: View {
 
     private func handleShutter() {
         Task {
+            if let galleryDog {
+                await viewModel.capturePhotoForGallery(
+                    dog: galleryDog, in: modelContext, liveMovie: livePhotoEnabled
+                )
+                onAddedToGallery()
+                return
+            }
             if let dog = await viewModel.attemptCatch(in: modelContext, liveMovie: livePhotoEnabled) {
                 onCaught(dog)
             } else {

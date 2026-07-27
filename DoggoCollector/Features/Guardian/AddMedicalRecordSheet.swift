@@ -188,7 +188,7 @@ struct AddMedicalRecordSheet: View {
             // pick can be 48MP+ verbatim, which RecordPreviewController's
             // pager may decode for the current page and its neighbors at
             // once (see memory_crash_fixes.md Step 5).
-            let data = DogPhoto.image(from: raw, size: .document)?
+            let data = PhotoDecoder.image(from: raw, size: .document)?
                 .jpegData(compressionQuality: 0.8) ?? raw
             let filename = "photo-\(UUID().uuidString).jpg"
             pendingAttachments.append(PendingAttachment(data: data, filename: filename, isPDF: false))

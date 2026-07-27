@@ -54,6 +54,11 @@ enum DoggoColor {
 
     static let heartPink = Color(hex: 0xF2777B)
 
+    /// The "make a call" green — used on the gallery's Call Clinic control so
+    /// a phone affordance reads as one at a glance. A touch deeper than iOS's
+    /// system call green so it doesn't clash with the warm palette.
+    static let callGreen = Color(hex: 0x2FA84F)
+
     /// Eyebrow-label color for the Share card's secondary metadata row only.
     static let metadataLabel = Color(hex: 0xB29A78)
 

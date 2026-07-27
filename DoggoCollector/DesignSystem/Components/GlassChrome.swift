@@ -21,8 +21,23 @@ struct GlassCircleChrome: ViewModifier {
     }
 }
 
+struct RegularGlassCircleChrome: ViewModifier {
+    var size: CGFloat = 44
+    var interactive: Bool = true
+    func body(content: Content) -> some View {
+        content
+            .frame(width: size, height: size)
+            .contentShape(Circle())
+            .glassEffect(.regular.interactive(interactive), in: .circle)
+    }
+}
+
 extension View {
     func glassCircleChrome(size: CGFloat = 44, interactive: Bool = true) -> some View {
         modifier(GlassCircleChrome(size: size, interactive: interactive))
+    }
+    
+    func regularGlassCircleChrome(size: CGFloat = 44, interactive: Bool = true) -> some View {
+        modifier(RegularGlassCircleChrome(size: size, interactive: interactive))
     }
 }

@@ -30,6 +30,7 @@ struct DoggoCollectorApp: App {
             modelContainer = try ModelContainer(
                 for: CaughtDog.self, UserProfile.self, CareEntry.self,
                 MedicationSchedule.self, MedicalRecord.self, MedicalAttachment.self,
+                DogPhoto.self,
                 configurations: config
             )
         } catch {

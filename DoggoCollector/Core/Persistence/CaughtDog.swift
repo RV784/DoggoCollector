@@ -47,6 +47,15 @@ final class CaughtDog {
     @Relationship(deleteRule: .cascade, inverse: \CareEntry.dog)
     var careEntries: [CareEntry]? = []
 
+    /// This dog's photo gallery. The original catch photo is migrated in as
+    /// the first entry (isCover) by GalleryMigration — the legacy `imageData`
+    /// / `livePhotoMovieData*` fields above are retained purely as that
+    /// migration's source and as a fallback, not written for new catches.
+    /// Always read photos through `coverImageData`/`sortedPhotos` rather than
+    /// touching the legacy fields directly.
+    @Relationship(deleteRule: .cascade, inverse: \DogPhoto.dog)
+    var photos: [DogPhoto]? = []
+
     // Medication tracking & medical records — literal defaults for the same
     // lightweight-migration reason as the fields above.
     @Relationship(deleteRule: .cascade, inverse: \MedicationSchedule.dog)
@@ -135,6 +144,98 @@ final class CaughtDog {
         classifiedBreedRaw = text
         breedConfidence = nil
         breedUserEdited = true
+    }
+
+    // MARK: - Gallery
+    //
+    // Every display site reads the dog's photo through these, never through
+    // the legacy `imageData` field — that way a dog whose photos have been
+    // migrated into the gallery and one that hasn't both render identically.
+
+    /// Gallery order: explicit sortIndex first, oldest-first within ties, so
+    /// the original catch photo naturally leads.
+    var sortedPhotos: [DogPhoto] {
+        (photos ?? []).sorted {
+            $0.sortIndex == $1.sortIndex ? $0.dateTaken < $1.dateTaken : $0.sortIndex < $1.sortIndex
+        }
+    }
+
+    /// The photo standing in for this dog wherever one thumbnail is needed.
+    var coverPhoto: DogPhoto? {
+        let all = sortedPhotos
+        return all.first(where: \.isCover) ?? all.first
+    }
+
+    /// Cover photo bytes, falling back to the pre-gallery field for any dog
+    /// GalleryMigration hasn't reached yet (or that has no photos at all).
+    var coverImageData: Data? {
+        coverPhoto?.imageData ?? imageData
+    }
+
+    /// Stable cache key for the cover photo — keyed to the photo's own id so
+    /// changing the cover invalidates cleanly instead of serving the previous
+    /// cover's decode under the dog's id.
+    var coverCacheKey: String {
+        coverPhoto?.id.uuidString ?? id.uuidString
+    }
+
+    /// Every live-photo movie in the gallery, in gallery order — the input to
+    /// GalleryPlaybackView's sequence. Falls back to the legacy per-dog
+    /// movie for un-migrated dogs so nothing loses its moving photo.
+    func galleryMovieData(tier: LiveMovieStore.Tier) -> [(id: String, data: Data)] {
+        let fromGallery = sortedPhotos.compactMap { photo -> (String, Data)? in
+            let data = tier == .tile
+                ? (photo.livePhotoMovieTileData ?? photo.livePhotoMovieData)
+                : photo.livePhotoMovieData
+            guard let data else { return nil }
+            return (photo.id.uuidString, data)
+        }
+        if !fromGallery.isEmpty { return fromGallery }
+        let legacy = tier == .tile
+            ? (livePhotoMovieTileData ?? livePhotoMovieData)
+            : livePhotoMovieData
+        return legacy.map { [(id.uuidString, $0)] } ?? []
+    }
+
+    /// Materialized file URLs for `galleryMovieData` — AVPlayer needs URLs.
+    func galleryMovieURLs(tier: LiveMovieStore.Tier) -> [URL] {
+        galleryMovieData(tier: tier).compactMap {
+            LiveMovieStore.url(for: $0.data, id: $0.id, tier: tier)
+        }
+    }
+
+    /// The whole gallery as a playback sequence — **every** photo, not just
+    /// the ones with movies. A live photo contributes its movie, a plain
+    /// photo contributes its still (which GalleryPlaybackView holds with a
+    /// slow zoom). Falls back to the legacy per-dog fields for any dog
+    /// GalleryMigration hasn't reached yet.
+    func gallerySlides(tier: LiveMovieStore.Tier) -> [GallerySlide] {
+        let photos = sortedPhotos
+        guard !photos.isEmpty else {
+            // Pre-gallery dog: one slide from the legacy fields.
+            let legacyMovie = tier == .tile
+                ? (livePhotoMovieTileData ?? livePhotoMovieData)
+                : livePhotoMovieData
+            let url = legacyMovie.flatMap { LiveMovieStore.url(for: $0, id: id.uuidString, tier: tier) }
+            guard url != nil || imageData != nil else { return [] }
+            return [GallerySlide(id: id.uuidString, movieURL: url, imageData: imageData)]
+        }
+
+        return photos.map { photo in
+            let movieData = tier == .tile
+                ? (photo.livePhotoMovieTileData ?? photo.livePhotoMovieData)
+                : photo.livePhotoMovieData
+            let url = movieData.flatMap {
+                LiveMovieStore.url(for: $0, id: photo.id.uuidString, tier: tier)
+            }
+            return GallerySlide(
+                id: photo.id.uuidString,
+                movieURL: url,
+                // Always carried, even for a live photo — it's the poster
+                // frame underneath while the movie spins up.
+                imageData: photo.imageData
+            )
+        }
     }
 
     var sortedCareEntries: [CareEntry] {

@@ -86,6 +86,14 @@ final class CameraService: NSObject {
     /// so pinch-gesture code always has an up-to-date anchor to read
     /// without waiting on the session queue.
     nonisolated(unsafe) private(set) var currentZoomFactor: CGFloat = 1.0
+    /// Whether the hardware has a camera on the opposite side to flip to —
+    /// false on the Simulator and any single-camera-side device, so the view
+    /// can hide the flip button rather than offer a no-op. Same write-once /
+    /// cross-context read shape as `hasCameraInput`.
+    nonisolated(unsafe) private(set) var isCameraFlipSupported = false
+    /// Which side is currently live. Toggled by `flipCamera`; the back
+    /// camera is the default (pointing at a dog you're catching).
+    private var currentPosition: AVCaptureDevice.Position = .back
     private let photoOutput = AVCapturePhotoOutput()
     private let sessionQueue = DispatchQueue(label: "com.doggocollector.camera.session")
     // AVCapturePhotoOutput invokes its delegate on "a common dispatch
@@ -331,28 +339,40 @@ final class CameraService: NSObject {
         }
     }
 
+    /// Best available camera for a side. Back gets the triple > dual-wide >
+    /// dual > single-wide preference chain (needed for 0.5x/tele zoom);
+    /// front phones are single-camera, so wide-angle is all there is.
+    private static func bestDevice(for position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+        if position == .back {
+            return AVCaptureDevice.default(.builtInTripleCamera, for: .video, position: .back)
+                ?? AVCaptureDevice.default(.builtInDualWideCamera, for: .video, position: .back)
+                ?? AVCaptureDevice.default(.builtInDualCamera, for: .video, position: .back)
+                ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+        }
+        return AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front)
+    }
+
     private func configureSessionIfNeeded() {
         guard session.inputs.isEmpty else { return }
         session.beginConfiguration()
         session.sessionPreset = .photo
 
-        // Triple > dual-wide > dual > single-wide preference chain — the
-        // device selection that makes 0.5x/tele zoom possible at all.
-        // Falls through to the plain wide-angle camera (the only case
-        // verified on "Rajat's iPhone 17e", a single-rear-camera phone,
-        // where every virtual-device lookup returns nil) exactly as before.
-        let device = AVCaptureDevice.default(.builtInTripleCamera, for: .video, position: .back)
-            ?? AVCaptureDevice.default(.builtInDualWideCamera, for: .video, position: .back)
-            ?? AVCaptureDevice.default(.builtInDualCamera, for: .video, position: .back)
-            ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
-
-        if let device, let input = try? AVCaptureDeviceInput(device: device),
+        // The single-rear-camera case ("Rajat's iPhone 17e") falls through
+        // the chain to the plain wide-angle camera exactly as before.
+        if let device = Self.bestDevice(for: .back),
+           let input = try? AVCaptureDeviceInput(device: device),
            session.canAddInput(input) {
             session.addInput(input)
             hasCameraInput = true
             activeDevice = device
+            currentPosition = .back
             configureZoom(for: device)
         }
+
+        // Flipping is only offered if there's actually a front camera to flip
+        // to (there isn't on the Simulator).
+        isCameraFlipSupported = hasCameraInput
+            && Self.bestDevice(for: .front) != nil
 
         if session.canAddOutput(photoOutput) {
             session.addOutput(photoOutput)
@@ -369,6 +389,48 @@ final class CameraService: NSObject {
         }
 
         session.commitConfiguration()
+    }
+
+    /// Swaps the live camera to the opposite side (front ⇄ back) — for
+    /// selfies with a dog. Reconfigures zoom for the new device and
+    /// re-evaluates Live Photo support, since a front camera's capabilities
+    /// differ from the rear array. A no-op while a capture (including a
+    /// trailing live-photo movie) is in flight would desync frames, so
+    /// callers gate the button on `isCapturing`; here we just guard the
+    /// input swap itself.
+    func flipCamera() {
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            guard let currentInput = session.inputs
+                .compactMap({ $0 as? AVCaptureDeviceInput })
+                .first(where: { $0.device.hasMediaType(.video) }) else { return }
+
+            let newPosition: AVCaptureDevice.Position = currentPosition == .back ? .front : .back
+            guard let newDevice = Self.bestDevice(for: newPosition),
+                  let newInput = try? AVCaptureDeviceInput(device: newDevice) else { return }
+
+            session.beginConfiguration()
+            session.removeInput(currentInput)
+            if session.canAddInput(newInput) {
+                session.addInput(newInput)
+                activeDevice = newDevice
+                currentPosition = newPosition
+                configureZoom(for: newDevice)
+            } else {
+                // Couldn't attach the other side — put the original back so
+                // the preview doesn't go dark.
+                session.addInput(currentInput)
+            }
+            // Live Photo support can differ per camera; keep the flag honest
+            // so the toggle/behaviour matches the now-active device.
+            if photoOutput.isLivePhotoCaptureSupported {
+                photoOutput.isLivePhotoCaptureEnabled = true
+                isLivePhotoCaptureSupported = true
+            } else {
+                isLivePhotoCaptureSupported = false
+            }
+            session.commitConfiguration()
+        }
     }
 
     /// Builds `zoomContext` and opens the camera at the "1x" the user

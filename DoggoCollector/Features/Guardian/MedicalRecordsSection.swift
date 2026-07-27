@@ -91,7 +91,7 @@ struct MedicalRecordsSection: View {
     @ViewBuilder
     private func thumbnail(_ record: MedicalRecord) -> some View {
         if let first = record.sortedAttachments.first, !first.isPDF,
-           let image = DogPhoto.image(from: first.data, size: .thumb, cacheKey: first.id.uuidString) {
+           let image = PhotoDecoder.image(from: first.data, size: .thumb, cacheKey: first.id.uuidString) {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()

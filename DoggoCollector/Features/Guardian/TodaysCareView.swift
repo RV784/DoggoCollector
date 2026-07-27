@@ -207,7 +207,7 @@ struct TodaysCareView: View {
 
     @ViewBuilder
     private func avatar(_ dog: CaughtDog) -> some View {
-        if let image = DogPhoto.image(from: dog.imageData, size: .avatar, cacheKey: dog.id.uuidString) {
+        if let image = PhotoDecoder.image(from: dog.coverImageData, size: .avatar, cacheKey: dog.coverCacheKey) {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()

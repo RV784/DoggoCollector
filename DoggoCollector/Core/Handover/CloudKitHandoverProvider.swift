@@ -64,19 +64,24 @@ struct CloudKitHandoverProvider: HandoverProviding {
         var tempFiles: [URL] = []
         defer { for url in tempFiles { try? FileManager.default.removeItem(at: url) } }
 
-        if let imageData = dog.imageData {
+        // Cover photo, gallery-aware (the legacy field is only a fallback for
+        // dogs GalleryMigration hasn't reached). Handover still transfers the
+        // single cover rather than the whole gallery — sending N photos as N
+        // CKAssets is its own sizing/quota question, and the receiving side's
+        // materializer builds a one-photo dog today.
+        if let imageData = dog.coverImageData {
             let url = try Self.writeTempFile(data: imageData, extension: "jpg")
             tempFiles.append(url)
             record[photoFieldKey] = CKAsset(fileURL: url)
         }
 
-        if let movieData = dog.livePhotoMovieData {
+        if let movieData = dog.coverPhoto?.livePhotoMovieData ?? dog.livePhotoMovieData {
             let url = try Self.writeTempFile(data: movieData, extension: "mov")
             tempFiles.append(url)
             record[liveMovieFieldKey] = CKAsset(fileURL: url)
         }
 
-        if let movieTileData = dog.livePhotoMovieTileData {
+        if let movieTileData = dog.coverPhoto?.livePhotoMovieTileData ?? dog.livePhotoMovieTileData {
             let url = try Self.writeTempFile(data: movieTileData, extension: "mov")
             tempFiles.append(url)
             record[liveMovieTileFieldKey] = CKAsset(fileURL: url)

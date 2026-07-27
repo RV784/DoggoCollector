@@ -79,7 +79,7 @@ struct PastWardsView: View {
 
     private func thumbnail(_ dog: CaughtDog) -> some View {
         Group {
-            if let image = DogPhoto.image(from: dog.imageData, size: .avatar, cacheKey: dog.id.uuidString) {
+            if let image = PhotoDecoder.image(from: dog.coverImageData, size: .avatar, cacheKey: dog.coverCacheKey) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()

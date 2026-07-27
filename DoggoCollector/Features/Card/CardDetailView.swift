@@ -47,13 +47,13 @@ struct CardDetailView: View {
                 ScrollView {
                     VStack(spacing: DoggoSpacing.lg) {
                         DoggoCardView(
-                            image: DogPhoto.image(from: dog.imageData, size: .card, cacheKey: dog.id.uuidString),
+                            image: PhotoDecoder.image(from: dog.coverImageData, size: .card, cacheKey: dog.coverCacheKey),
                             name: dog.name,
                             breedLabel: dog.breedLabel,
                             serialNumber: dog.serialNumber,
                             traits: dog.traits,
                             placeholderSeed: dog.id.hashValue,
-                            liveMovieURL: dog.livePhotoMovieData.flatMap { LiveMovieStore.url(for: $0, id: dog.id.uuidString) }
+                            slides: dog.gallerySlides(tier: .full)
                         )
 
                         Text("\(serialText) in your pack \u{00B7} caught at \(dog.locationLabel)")

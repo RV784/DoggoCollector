@@ -21,22 +21,20 @@ struct DoggoCardView: View {
     /// the breed chip on the opposite corner. Kept small so it never
     /// competes with the photo.
     var showsGuardianTag: Bool = false
-    /// When non-nil, a muted movie loops continuously over the still for
-    /// as long as this card is on screen (originally capped at 3 loops
-    /// then faded back to the still — changed after on-device use showed
-    /// that read as "plays once, looks dead," see LoopingMovieView).
-    /// Originally scoped to full-size cards only
-    /// (Card Detail/Catch Celebration) — the camera-revamp plan's Decision
-    /// E kept the Collection grid still-only, reasoning a grid of
-    /// concurrent `AVPlayer`s was "exactly" the class of memory/CPU
-    /// pressure decision #19 eliminated. That analogy doesn't actually
-    /// hold at this size: decision #19's problem was ~82MP JPEG decodes
-    /// (~330MB each); this movie is a 720×720 HEVC clip at 2.5Mbps, a
-    /// couple of orders of magnitude smaller. Wired into the grid too per
-    /// user request — watch real-device scroll smoothness/memory if a
-    /// user has many live-photo catches visible at once; nothing here
-    /// caps concurrent grid players yet.
-    var liveMovieURL: URL? = nil
+    /// The dog's whole gallery as a looping playback sequence — live photos
+    /// play their movie through, plain photos hold with a slow zoom, and it
+    /// crossfades between them for as long as the card is on screen (see
+    /// GalleryPlaybackView). Empty means "just show the still `image`".
+    ///
+    /// The Collection grid gets this too, not just full-size cards: the
+    /// camera-revamp plan originally kept the grid still-only, reasoning a
+    /// grid of concurrent `AVPlayer`s was the memory/CPU pressure class
+    /// decision #19 eliminated. That analogy doesn't hold at this size —
+    /// decision #19's problem was ~82MP JPEG decodes (~330MB each), whereas
+    /// a tile-tier movie is a 360×360 HEVC clip. Still uncapped, though:
+    /// watch real-device scroll smoothness if a user has many live-photo
+    /// dogs visible at once.
+    var slides: [GallerySlide] = []
 
     private var serialText: String {
         "#" + String(format: "%03d", serialNumber)
@@ -133,8 +131,10 @@ struct DoggoCardView: View {
                 // redundant with the outer one below, kept anyway per
                 // this project's own history with photo-adjacent
                 // hit-testing bugs (Resolved #1).
-                if let liveMovieURL {
-                    LoopingMovieView(url: liveMovieURL)
+                // Only worth mounting when there's actually a sequence — a
+                // lone plain photo is already drawn by the still layer below.
+                if slides.count > 1 || slides.first?.isMovie == true {
+                    GalleryPlaybackView(slides: slides, decodeSize: isCompact ? .tile : .card)
                         .allowsHitTesting(false)
                 }
             }
