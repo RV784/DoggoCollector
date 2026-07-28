@@ -39,14 +39,20 @@ struct DogGalleryView: View {
 
     @Namespace private var morphNamespace
     @Namespace private var careNamespace
+    /// The Photos-style tile→viewer zoom. Kept separate from the other two
+    /// namespaces so the three transitions can never interfere.
+    @Namespace private var zoomNamespace
 
     private enum Surface { case gallery, camera }
     @State private var surface: Surface = .gallery
     @State private var careMode = false
 
+    /// The photo whose full-screen viewer is pushed. nil = grid only.
+    @State private var viewerPhoto: DogPhoto?
+
     @State private var showPledgeSheet = false
     @State private var showLogSheet = false
-    @State private var showShare = false
+    @State private var showShelterPass = false
     @State private var showRename = false
     @State private var renameText = ""
     @State private var showEditBreed = false
@@ -148,7 +154,10 @@ struct DogGalleryView: View {
                 toastMessage = "\(type.title) logged \u{2713}"
             }
         }
-        .sheet(isPresented: $showShare) { ShareView(dog: dog) }
+        .fullScreenCover(isPresented: $showShelterPass) { ShelterPassView(dog: dog) }
+        .navigationDestination(item: $viewerPhoto) { photo in
+            PhotoViewerView(dog: dog, initialPhotoID: photo.id, zoomNamespace: zoomNamespace)
+        }
         .alert("Rename doggo", isPresented: $showRename) {
             TextField("Name", text: $renameText)
             Button("Save") {
@@ -213,23 +222,29 @@ struct DogGalleryView: View {
     }
 
     private func mosaicTile(_ photo: DogPhoto, index: Int) -> some View {
-        Color.clear
-            .overlay {
-                if let image = PhotoDecoder.image(from: photo.imageData, size: .tile, cacheKey: photo.id.uuidString) {
-                    Image(uiImage: image).resizable().scaledToFill()
-                } else {
-                    PolkaDotPlaceholder(seed: photo.id.hashValue)
+        Button { viewerPhoto = photo } label: {
+            Color.clear
+                .overlay {
+                    if let image = PhotoDecoder.image(from: photo.imageData, size: .tile, cacheKey: photo.id.uuidString) {
+                        Image(uiImage: image).resizable().scaledToFill()
+                    } else {
+                        PolkaDotPlaceholder(seed: photo.id.hashValue)
+                    }
                 }
-            }
-            .clipped()
-            .contentShape(Rectangle())
-            // Only the first few tiles carry the shared id — those are the
-            // ones that physically fly into the stack.
-            .matchedGeometryEffect(
-                id: index < Self.flyingTileCount ? "carePhoto-\(photo.id)" : "carePhotoIdle-\(photo.id)",
-                in: careNamespace,
-                isSource: !careMode
-            )
+                .clipped()
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // The zoom transition's source: this tile is what the viewer enlarges
+        // out of and shrinks back into.
+        .matchedTransitionSource(id: photo.id, in: zoomNamespace)
+        // Only the first few tiles carry the shared id — those are the
+        // ones that physically fly into the stack (the Care transition).
+        .matchedGeometryEffect(
+            id: index < Self.flyingTileCount ? "carePhoto-\(photo.id)" : "carePhotoIdle-\(photo.id)",
+            in: careNamespace,
+            isSource: !careMode
+        )
     }
 
     // MARK: - Top bar
@@ -333,12 +348,19 @@ struct DogGalleryView: View {
 
                 centerButton
 
-                Button { showShare = true } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundStyle(DoggoColor.marigold)
-                        .glassCircleChrome(size: 58)
+                // The Instagram/native share moved into the photo viewer's
+                // bottom-left. This slot is now the Shelter Pass export — a
+                // Guardian-only document, so it's shown only for wards (nothing
+                // to put on a pass for a dog with no dossier).
+                if dog.isWard {
+                    Button { showShelterPass = true } label: {
+                        Image(systemName: "doc.text.fill")
+                            .foregroundStyle(DoggoColor.marigold)
+                            .glassCircleChrome(size: 58)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Shelter Pass")
                 }
-                .buttonStyle(.plain)
             }
         }
         // Matches the top bar's inset so the two rows of floating controls
