@@ -91,6 +91,49 @@ enum DoggoColor {
     static let recordFileFg = Color(hex: 0xC0872B)
     static let inputBorder = Color(hex: 0xFFE0BC)
 
+    // Shelter Pass redesign (Shelter Pass.dc.html) — the "warm sunlit light
+    // field" behind an opaque paper pass, plus the flat print tokens. Hexes
+    // lifted verbatim from the prototype.
+    // Light field (Life A, on screen)
+    static let passGround1 = Color(hex: 0xFFF9EC)   // warm ground ramp
+    static let passGround2 = Color(hex: 0xFFEDD2)
+    static let passGround3 = Color(hex: 0xFFE0BB)
+    static let passGround4 = Color(hex: 0xF8D2A8)
+    static let passPoolMarigold = Color(hex: 0xFFD89E)   // mesh bloom pools
+    static let passPoolPeach    = Color(hex: 0xFFCBAB)
+    static let passPoolSage     = Color(hex: 0xDFEBD5)
+    static let passFloor        = Color(hex: 0xDB9E54)   // warm floor vignette
+    static let passGrainInk     = Color(hex: 0x9A7B45)   // paper grain / guilloché
+    // The paper pass + its marigold header
+    static let passPaper1  = Color(hex: 0xFFFDF8)
+    static let passPaper2  = Color(hex: 0xFDF3E2)
+    static let passHeader1 = Color(hex: 0xFFC96B)
+    static let passHeader2 = Color(hex: 0xF5A623)
+    static let passHeader3 = Color(hex: 0xEF9C14)
+    static let passFooter1 = Color(hex: 0xFDF6EA)
+    static let passFooter2 = Color(hex: 0xFBEFDC)
+    static let passHairline = Color(hex: 0xDDD5C7)
+    static let passMedBg   = Color(hex: 0xFBF6EC)
+    static let passHandoverBg = Color(hex: 0xF1EBE0)
+    static let passHandoverBorder = Color(hex: 0xE2D6C2)
+    // The paw seal (screen: warm cream + amber paw)
+    static let sealCream1 = Color(hex: 0xFFFDF6)
+    static let sealCream2 = Color(hex: 0xFDF0DA)
+    static let sealCream3 = Color(hex: 0xF6E2C4)
+    static let sealRing   = Color(hex: 0xF0C98A)
+    static let sealPaw    = Color(hex: 0xE09A22)
+    static let issuedInk  = Color(hex: 0x9A7B45)
+    // Reduce Transparency fallback for the field
+    static let passReduceTransp1 = Color(hex: 0xFBE9CE)
+    static let passReduceTransp2 = Color(hex: 0xEFD3A8)
+    // Life B (print) — flat, ink on white, grayscale-safe
+    static let printInk    = Color(hex: 0x2B2013)
+    static let printGrey   = Color(hex: 0x6E6150)
+    static let printHair   = Color(hex: 0xDDD5C7)
+    static let printGuilloche = Color(hex: 0x9A7B45)
+    static let printEstFg  = Color(hex: 0x7C5417)
+    static let printObsFg  = Color(hex: 0x2F6B3E)
+
     static let cameraGradient = LinearGradient(
         colors: [sky, sage],
         startPoint: .top,

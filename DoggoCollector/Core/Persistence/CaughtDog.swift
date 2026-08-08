@@ -35,6 +35,13 @@ final class CaughtDog {
     var sterilizationRaw: String = SterilizationStatus.unknown.rawValue
     var dietaryProfile: String? = nil
     var behavioralQuirks: String? = nil
+    /// Optional recorded sex ("Female"/"Male"), shown on the Shelter Pass and
+    /// editable from the Dossier. nil = unknown/unset (the pass omits the cell).
+    var sex: String? = nil
+    /// When the Shelter Pass was first "issued" (minted). Drives the pass's
+    /// ISSUED date and the once-per-issuance ceremony (nil = never issued →
+    /// full ceremony on next open, which then stamps this).
+    var shelterPassIssuedAt: Date? = nil
     /// Clinic fields are a snapshot taken at pledge time (name/phone/address/
     /// distance/coordinate) rather than a reference — `CarePlace` comes from
     /// `LiveCareDirectory` (a live MKLocalSearch) and isn't itself persisted.

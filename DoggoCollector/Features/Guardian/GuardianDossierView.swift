@@ -20,6 +20,7 @@ struct GuardianDossierView: View {
     @State private var quirksText = ""
     @State private var showClinicSheet = false
     @State private var showClinicPicker = false
+    @State private var showSexDialog = false
     /// Set by ClinicSheet's "Change clinic" link, then consumed in
     /// showClinicSheet's onDismiss — chains the two sheets without ever
     /// presenting one directly from inside the other.
@@ -55,6 +56,12 @@ struct GuardianDossierView: View {
         .alert("Behavioral quirks", isPresented: $showQuirksEdit) {
             TextField("e.g. Shy around men, loves belly rubs", text: $quirksText)
             Button("Save") { dog.behavioralQuirks = quirksText.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Record \(dog.name)'s sex", isPresented: $showSexDialog, titleVisibility: .visible) {
+            Button("Female") { dog.sex = "Female" }
+            Button("Male") { dog.sex = "Male" }
+            if dog.sex != nil { Button("Clear", role: .destructive) { dog.sex = nil } }
             Button("Cancel", role: .cancel) {}
         }
         .sheet(isPresented: $showClinicSheet, onDismiss: {
@@ -122,6 +129,12 @@ struct GuardianDossierView: View {
                         showClinicPicker = true
                     }
                     vitalCell(label: "LAST CARE CHECK", value: lastCareCheckText)
+                }
+                GridRow {
+                    vitalCell(label: "SEX", value: dog.sex ?? "Tap to add") {
+                        showSexDialog = true
+                    }
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
                 }
             }
         }
