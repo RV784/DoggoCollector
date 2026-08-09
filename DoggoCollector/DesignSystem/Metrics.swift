@@ -19,7 +19,7 @@ enum DoggoRadius {
     /// Fully rounded — buttons, chips.
     static let pill: CGFloat = 999
     /// Cards.
-    static let card: CGFloat = 28
+    static let card: CGFloat = 20
     /// Small controls — icon buttons, badges.
     static let control: CGFloat = 16
 }

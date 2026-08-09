@@ -15,10 +15,6 @@ private enum SurfaceState {
     case celebration
 }
 
-private enum PackTab: Hashable {
-    case all, wards
-}
-
 struct CollectionView: View {
     @Environment(GameCenterAuthProvider.self) private var authProvider
     @Environment(\.scenePhase) private var scenePhase
@@ -28,9 +24,19 @@ struct CollectionView: View {
     @Namespace private var morphNamespace
     @State private var surfaceState: SurfaceState = .idle
     @State private var caughtDog: CaughtDog?
-    @State private var packTab: PackTab = .all
+    /// Scroll-driven: the "Catch a doggo" pill collapses to a circle (matching
+    /// the paw button) when scrolling down, expands back to a pill scrolling up.
+    @State private var catchCollapsed = false
+    /// Captured at the top on first layout; the collapse is measured as
+    /// distance from here, so it doesn't depend on the device's safe-area
+    /// baseline or on which sign the offset happens to move in.
+    @State private var scrollBaseline: CGFloat?
+    /// The previous scrolled-distance, so we can tell scroll direction and
+    /// expand the instant the user scrolls back up (not only at the top).
+    @State private var lastScrolled: CGFloat = 0
 
     private var hasWards: Bool { catches.contains { $0.isWard } }
+    private var activeWards: [CaughtDog] { catches.filter(\.isActiveWard) }
     private var dosesDueTodayCount: Int { TodaysCare.dueTodayCount(for: catches) }
 
     private let mechanic = PackCollectorMechanic()
@@ -43,6 +49,21 @@ struct CollectionView: View {
     // softer springs used for ordinary UI feedback elsewhere in the app.
     private let morphAnimation: Animation = .spring(response: 0.4, dampingFraction: 1.0, blendDuration: 0)
     private let morphOpenAnimation: Animation = .spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
+    // The pill↔circle collapse — a springy little bounce, its own animation
+    // so it never entangles with the camera morph's transaction. The low
+    // damping is what gives the settle its overshoot/bounce.
+    private let collapseAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.7, blendDuration: 0)
+
+    private let pawButtonSize: CGFloat = 58
+    /// Both circular buttons shrink a touch once collapsed, back to full size
+    /// when expanded.
+    private let collapsedButtonSize: CGFloat = 46
+    /// The pill's expanded width — screen minus the bar's horizontal padding,
+    /// the paw button, and the gap between them. Explicit (not a greedy fill)
+    /// so the collapse interpolates smoothly in both directions.
+    private var fullCatchWidth: CGFloat {
+        UIScreen.main.bounds.width - 2 * DoggoSpacing.lg - DoggoSpacing.md - pawButtonSize
+    }
 
     // TEMP-PAYWALL-PREVIEW: remove with the matching .sheet below.
     @State private var tempPaywallPreview = ProcessInfo.processInfo.arguments.contains("-previewPaywall")
@@ -55,15 +76,32 @@ struct CollectionView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: DoggoSpacing.xl) {
                         header
-                        statsRow
-                        if hasWards {
-                            packTabPicker
+                            .padding(.horizontal, DoggoSpacing.lg)
+                        if catches.isEmpty {
+                            EmptyStateView()
+                                .padding(.top, DoggoSpacing.xxl)
+                                .padding(.horizontal, DoggoSpacing.lg)
+                        } else {
+                            if hasWards {
+                                wardsSection
+                            }
+                            allCatchesSection
+                                .padding(.horizontal, DoggoSpacing.lg)
                         }
-                        content
                     }
-                    .padding(DoggoSpacing.lg)
+                    .padding(.vertical, DoggoSpacing.lg)
                     .padding(.bottom, 110)
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.frame(in: .named("packScroll")).minY
+                    } action: { newValue in
+                        updateCatchCollapse(offset: newValue)
+                    }
                 }
+                .coordinateSpace(.named("packScroll"))
+                // Belt-and-braces against a phantom top inset: with the nav bar
+                // hidden, the scroll content should start right under the status
+                // bar, not below a reserved (invisible) bar's height.
+                .contentMargins(.top, 0, for: .scrollContent)
                 .blur(radius: surfaceState == .camera ? 6 : 0)
                 .allowsHitTesting(surfaceState == .idle)
 
@@ -86,9 +124,25 @@ struct CollectionView: View {
                 ZStack {
                     if surfaceState == .idle {
                         GlassEffectContainer {
-                            HStack(spacing: DoggoSpacing.md) {
-                                catchButton
-                                pawButton
+                            // catch button pinned leading, paw pinned trailing —
+                            // independent so the catch pill can collapse to a
+                            // circle on the left without dragging the paw inward.
+                            // When collapsed, the doses chip slides in beside the
+                            // circle (matchedGeometryEffect animates it down from
+                            // its floating spot above).
+                            ZStack {
+                                HStack(spacing: DoggoSpacing.md) {
+                                    catchButton(collapsed: catchCollapsed)
+                                    if catchCollapsed, dosesDueTodayCount > 0 {
+                                        todaysCareChip(collapsed: true)
+                                            .matchedGeometryEffect(id: "dosesChip", in: morphNamespace)
+                                    }
+                                    Spacer(minLength: 0)
+                                }
+                                HStack(spacing: 0) {
+                                    Spacer(minLength: 0)
+                                    pawButton
+                                }
                             }
                         }
                     }
@@ -96,13 +150,14 @@ struct CollectionView: View {
                 .padding(.horizontal, DoggoSpacing.lg)
                 .padding(.bottom, DoggoSpacing.lg)
 
-                // Stable anchor for the "N doses due today" entry chip —
-                // only when something's genuinely due, and only in .idle
-                // (must never float over the camera panel or celebration).
+                // The "N doses due today" chip's *expanded* home — floating just
+                // above the pill. When the pill collapses it hands off (via the
+                // shared matchedGeometryEffect id) to the copy beside the circle.
                 ZStack {
-                    if surfaceState == .idle, dosesDueTodayCount > 0 {
+                    if surfaceState == .idle, dosesDueTodayCount > 0, !catchCollapsed {
                         HStack {
-                            todaysCareChip
+                            todaysCareChip(collapsed: false)
+                                .matchedGeometryEffect(id: "dosesChip", in: morphNamespace)
                             Spacer(minLength: 0)
                         }
                         .padding(.horizontal, DoggoSpacing.lg)
@@ -146,6 +201,7 @@ struct CollectionView: View {
             .navigationDestination(for: MapDestination.self) { _ in MapView() }
             .navigationDestination(for: PastWardsDestination.self) { _ in PastWardsView() }
             .navigationDestination(for: TodaysCareDestination.self) { _ in TodaysCareView() }
+            .navigationDestination(for: WardsDestination.self) { _ in WardsScreen() }
         }
         // TEMP-PAYWALL-PREVIEW
         .sheet(isPresented: $tempPaywallPreview) {
@@ -210,26 +266,109 @@ struct CollectionView: View {
         }
     }
 
-    private var statsRow: some View {
-        HStack(spacing: DoggoSpacing.sm) {
-            ForEach(mechanic.stats(for: catches)) { stat in
-                StatChip(text: stat.label, isActive: stat.isPrimary)
+    // MARK: - Sections (Apple-Music-style Home)
+
+    /// Plain section title (no "see all" affordance).
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(DoggoTextStyle.headline)
+            .foregroundStyle(DoggoColor.ink)
+    }
+
+    /// The hero section: active wards as large cards that scroll horizontally
+    /// and bleed off the trailing edge (Apple Music "Top Picks"). Visible once
+    /// any pledge has ever happened; if every ward is archived the carousel is
+    /// replaced by a quiet link into the full wards screen.
+    private var wardsSection: some View {
+        VStack(alignment: .leading, spacing: DoggoSpacing.md) {
+            NavigationLink(value: WardsDestination()) {
+                HStack(spacing: DoggoSpacing.xs) {
+                    Text("Guardian Wards")
+                        .font(DoggoTextStyle.headline)
+                        .foregroundStyle(DoggoColor.ink)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(DoggoColor.inkMuted)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, DoggoSpacing.lg)
+
+            if activeWards.isEmpty {
+                NavigationLink(value: WardsDestination()) {
+                    Text("No active wards \u{00B7} View past \u{2192}")
+                        .font(DoggoTextStyle.bodySemibold)
+                        .foregroundStyle(DoggoColor.marigold)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, DoggoSpacing.lg)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: DoggoSpacing.md) {
+                        ForEach(activeWards) { dog in
+                            NavigationLink(value: dog) { wardCard(dog) }
+                                .buttonStyle(ScalePressButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal, DoggoSpacing.lg)
+                }
+                .scrollClipDisabled()
             }
         }
     }
 
-    private var packTabPicker: some View {
-        SegmentedTabs(options: [(.all, "All Catches"), (.wards, "Guardian Wards")], selection: $packTab)
+    /// A larger take on the standard grid card, with the ward's status and
+    /// (when owed) a doses-due nudge integrated onto the card itself — the
+    /// sterilization badge balancing the GUARDIAN tag across the top, the
+    /// doses chip riding in the glass footer beside the name.
+    private func wardCard(_ dog: CaughtDog) -> some View {
+        let dueToday = TodaysCare.dueTodayCount(for: [dog])
+        return DoggoCardView(
+            image: PhotoDecoder.image(from: dog.coverImageData, size: .card, cacheKey: dog.coverCacheKey),
+            name: dog.name,
+            breedLabel: dog.breedLabel,
+            serialNumber: dog.serialNumber,
+            isCompact: true,
+            placeholderSeed: dog.id.hashValue,
+            showsGuardianTag: true,
+            // The bigger ward cards warrant the crisper full-size movie
+            // transcode; there are only ever a few on screen.
+            slides: dog.gallerySlides(tier: .full)
+        )
+        .overlay(alignment: .topLeading) {
+            StatusBadge.Compact(status: dog.sterilization)
+                .padding(DoggoSpacing.sm)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if dueToday > 0 {
+                dosesDueChip(count: dueToday)
+                    .padding(.horizontal, DoggoSpacing.md)
+                    .padding(.vertical, DoggoSpacing.md)
+            }
+        }
+        .frame(width: wardCardWidth)
     }
 
-    @ViewBuilder
-    private var content: some View {
-        if catches.isEmpty {
-            EmptyStateView()
-                .padding(.top, DoggoSpacing.xxl)
-        } else if hasWards && packTab == .wards {
-            WardsListView(catches: catches)
-        } else {
+    /// Amber "N doses due" capsule — the one actionable nudge worth surfacing
+    /// on the card face.
+    private func dosesDueChip(count: Int) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "pills.fill")
+                .font(.system(size: 11, weight: .semibold))
+            Text(count == 1 ? "1 dose due" : "\(count) doses due")
+                .font(DoggoTextStyle.caption)
+        }
+        .foregroundStyle(DoggoColor.statusAttnAccent)
+        .padding(.horizontal, DoggoSpacing.sm)
+        .padding(.vertical, 4)
+        .background(DoggoColor.statusAttnBg, in: Capsule())
+    }
+
+    /// The full collection: every catch (wards included) in the standard
+    /// 2-column grid.
+    private var allCatchesSection: some View {
+        VStack(alignment: .leading, spacing: DoggoSpacing.md) {
+            sectionHeader("All Catches")
             LazyVGrid(columns: columns, spacing: DoggoSpacing.md) {
                 ForEach(catches) { dog in
                     NavigationLink(value: dog) {
@@ -241,11 +380,6 @@ struct CollectionView: View {
                             isCompact: true,
                             placeholderSeed: dog.id.hashValue,
                             showsGuardianTag: dog.isActiveWard,
-                            // Prefer the cheap .tile transcode (decision #21's
-                            // grid-tier addition); fall back to the full
-                            // 720x720 movie for catches made before that
-                            // field existed, rather than showing no movie
-                            // at all for them.
                             // Every live photo in this dog's gallery, cheap
                             // .tile transcodes, played in sequence on a loop.
                             slides: dog.gallerySlides(tier: .tile)
@@ -256,6 +390,9 @@ struct CollectionView: View {
             }
         }
     }
+
+    /// One card + a peek of the next, so the carousel reads as scrollable.
+    private var wardCardWidth: CGFloat { UIScreen.main.bounds.width * 0.72 }
 
     // MARK: - The morphing surface (peer-layer pattern)
     //
@@ -272,47 +409,25 @@ struct CollectionView: View {
     // (see CatchCelebrationView), so pill → viewfinder → card is one
     // continuous morph rather than a hard cut to a modal.
 
-//    private var catchButton: some View {
-//        Button(action: openCamera) {
-//            ZStack {
-//                // Liquid Glass on the hero pill (CLAUDE.md's Liquid Glass
-//                // decision, Step 4 — isolated/revertible): marigold stays
-//                // underneath at reduced opacity so the mid-morph crossfade
-//                // to the black camera panel still reads as it does today;
-//                // glass adds lensing on top rather than replacing the brand
-//                // color. `.glassEffectTransition(.identity)` stops the glass
-//                // material from running its own transition when this view
-//                // leaves the hierarchy — matchedGeometryEffect alone owns
-//                // the frame interpolation, so the two systems don't fight.
-//                // Glass is applied before matchedGeometryEffect so the
-//                // geometry effect wraps the final rendered element.
-//                DoggoColor.marigold.opacity(0.85)
-//                    .clipShape(RoundedRectangle(cornerRadius: DoggoRadius.pill))
-//                    .glassEffect(.clear.tint(DoggoColor.marigold).interactive(), in: .rect(cornerRadius: DoggoRadius.pill))
-//                    .glassEffectTransition(.identity)
-//                    .matchedGeometryEffect(id: "catchSurface", in: morphNamespace)
-//
-//                HStack(spacing: DoggoSpacing.sm) {
-//                    Image(systemName: "camera.fill")
-//                    Text("Catch a doggo")
-//                }
-//                .font(DoggoTextStyle.bodySemibold)
-//                .foregroundStyle(.purple)
-//                .transition(.opacity)
-//            }
-//            .frame(height: 56)
-//        }
-//        .buttonStyle(ScalePressButtonStyle())
-//    }
-    
-    private var catchButton: some View {
+    /// The hero "Catch a doggo" control. `collapsed` swaps it between the
+    /// full-width labelled pill and a paw-button-sized circle (icon only). The
+    /// corner radius stays `.pill` the whole time — on a 58×58 square that's a
+    /// circle — so the frame is the only thing changing, which keeps the
+    /// camera morph (matchedGeometryEffect on the same background) intact.
+    private func catchButton(collapsed: Bool) -> some View {
         Button(action: openCamera) {
             DoggoColor.marigold.opacity(0.85)
                 .clipShape(RoundedRectangle(cornerRadius: DoggoRadius.pill))
                 .overlay {
-                    HStack(spacing: DoggoSpacing.sm) {
-                        Image(systemName: "camera.fill")
-                        Text("Catch a doggo")
+                    Group {
+                        if collapsed {
+                            Image(systemName: "camera.fill")
+                        } else {
+                            HStack(spacing: DoggoSpacing.sm) {
+                                Image(systemName: "camera.fill")
+                                Text("Catch a doggo")
+                            }
+                        }
                     }
                     .font(DoggoTextStyle.bodySemibold)
                     .foregroundStyle(DoggoColor.cream)
@@ -321,32 +436,71 @@ struct CollectionView: View {
                 .glassEffect(.clear.tint(DoggoColor.marigold).interactive(), in: .rect(cornerRadius: DoggoRadius.pill))
                 .glassEffectTransition(.identity)
                 .matchedGeometryEffect(id: "catchSurface", in: morphNamespace)
-                .frame(height: 56)
+                .frame(width: collapsed ? collapsedButtonSize : fullCatchWidth,
+                       height: collapsed ? collapsedButtonSize : pawButtonSize)
         }
         .buttonStyle(ScalePressButtonStyle())
     }
 
-    private var todaysCareChip: some View {
+    /// Collapse while scrolling down, expand the instant you scroll back up —
+    /// and always the pill near the top. Direction is read from the change in
+    /// distance-from-the-top-baseline (not the raw offset), so it's immune to
+    /// which sign the scroll coordinate uses; the ±4 threshold ignores jitter.
+    private func updateCatchCollapse(offset: CGFloat) {
+        let baseline = scrollBaseline ?? offset
+        if scrollBaseline == nil { scrollBaseline = offset }
+        let scrolled = abs(offset - baseline)
+        let delta = scrolled - lastScrolled
+        lastScrolled = scrolled
+
+        if scrolled < 40 {
+            setCatchCollapsed(false) // near the top: always the full pill
+        } else if delta < -4 {
+            setCatchCollapsed(false) // moving back toward the top → scrolling up
+        } else if delta > 4 {
+            setCatchCollapsed(true)  // moving away from the top → scrolling down
+        }
+    }
+
+    private func setCatchCollapsed(_ value: Bool) {
+        guard catchCollapsed != value else { return }
+        withAnimation(collapseAnimation) { catchCollapsed = value }
+    }
+
+    /// `collapsed` shrinks the "N doses due today" pill into a
+    /// `collapsedButtonSize` circle (just the pills glyph), to sit beside the
+    /// collapsed catch/paw circles; the shared matchedGeometryEffect id morphs
+    /// it between the two forms.
+    private func todaysCareChip(collapsed: Bool) -> some View {
         NavigationLink(value: TodaysCareDestination()) {
-            HStack(spacing: DoggoSpacing.sm) {
-                Image(systemName: "pills.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(DoggoColor.logMedFg)
-                    .frame(width: 24, height: 24)
-                    .background(DoggoColor.logMedBg, in: RoundedRectangle(cornerRadius: 8))
-                Text(dosesDueTodayCount == 1 ? "1 dose due today" : "\(dosesDueTodayCount) doses due today")
-                    .font(DoggoTextStyle.bodySemibold)
-                    .foregroundStyle(DoggoColor.ink)
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(DoggoColor.marigold)
+            Group {
+                if collapsed {
+                    Image(systemName: "pills.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DoggoColor.logMedFg)
+                        .frame(width: collapsedButtonSize, height: collapsedButtonSize)
+                        .background(DoggoColor.cardWhite, in: Circle())
+                        .overlay(Circle().stroke(DoggoColor.statusAttnBorder, lineWidth: 1.5))
+                } else {
+                    HStack(spacing: DoggoSpacing.sm) {
+                        Image(systemName: "pills.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(DoggoColor.logMedFg)
+                            .frame(width: 24, height: 24)
+                            .background(DoggoColor.logMedBg, in: RoundedRectangle(cornerRadius: 8))
+                        Text(dosesDueTodayCount == 1 ? "1 dose due today" : "\(dosesDueTodayCount) doses due today")
+                            .font(DoggoTextStyle.bodySemibold)
+                            .foregroundStyle(DoggoColor.ink)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(DoggoColor.marigold)
+                    }
+                    .padding(.horizontal, DoggoSpacing.md)
+                    .padding(.vertical, DoggoSpacing.sm)
+                    .background(DoggoColor.cardWhite, in: Capsule())
+                    .overlay(Capsule().stroke(DoggoColor.statusAttnBorder, lineWidth: 1.5))
+                }
             }
-            .padding(.horizontal, DoggoSpacing.md)
-            .padding(.vertical, DoggoSpacing.sm)
-            .background(DoggoColor.cardWhite, in: Capsule())
-            .overlay(
-                Capsule().stroke(DoggoColor.statusAttnBorder, lineWidth: 1.5)
-            )
             .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
         }
         .buttonStyle(.plain)
@@ -356,7 +510,7 @@ struct CollectionView: View {
         NavigationLink(value: CareDestination()) {
             Image(systemName: "pawprint.fill")
                 .foregroundStyle(DoggoColor.marigold)
-                .glassCircleChrome(size: 58)
+                .glassCircleChrome(size: catchCollapsed ? collapsedButtonSize : pawButtonSize)
         }
         .buttonStyle(.plain)
     }
@@ -403,6 +557,7 @@ struct CareDestination: Hashable {}
 struct MapDestination: Hashable {}
 struct PastWardsDestination: Hashable {}
 struct TodaysCareDestination: Hashable {}
+struct WardsDestination: Hashable {}
 
 #Preview {
     CollectionView()
