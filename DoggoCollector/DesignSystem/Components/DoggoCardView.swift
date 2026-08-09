@@ -41,68 +41,117 @@ struct DoggoCardView: View {
     }
 
     var body: some View {
+        Group {
+            if isCompact {
+                compactBody
+            } else {
+                fullBody
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: DoggoRadius.card))
+        .shadow(color: .black.opacity(0.08), radius: 12, y: 6)
+    }
+
+    /// Height of the reflection/caption strip below the square photo.
+    private let reflectionHeight: CGFloat = 60
+
+    /// Grid tile: the full square photo sits on top, unobstructed, and the
+    /// name/breed ride in a Liquid Glass bar below it. Behind that glass is a
+    /// vertically-mirrored copy of the same media (still, live-photo player, or
+    /// carousel) — so the glass has real, animating content to refract, like
+    /// the dog is standing on glossy glass, without ever covering the photo.
+    private var compactBody: some View {
+        VStack(spacing: 0) {
+            photo
+                .allowsHitTesting(false)
+                .overlay(alignment: .topTrailing) {
+                    if showsGuardianTag { guardianTag }
+                }
+
+            // The reflection strip: a *true* mirror of the media — rendered at
+            // the same square size as the photo and flipped about the seam, so
+            // the pixels at the boundary match and the two read as one
+            // continuous surface (no hard line). It sits as the strip's
+            // background (so the glass refracts it) while the caption sits as an
+            // overlay (so the text stays above the UIKit-backed player layer).
+            GeometryReader { geo in
+                mediaFill
+                    .frame(width: geo.size.width, height: geo.size.width)
+                    .scaleEffect(x: 1, y: -1)
+                    .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+                    .clipped()
+                    .allowsHitTesting(false)
+            }
+            .frame(height: reflectionHeight)
+            .overlay {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name)
+                        .font(DoggoTextStyle.bodySemibold)
+                        .foregroundStyle(DoggoColor.ink)
+                        // A slight self-colored halo so the label stays legible
+                        // over whatever media happens to be behind the glass.
+                        .shadow(color: DoggoColor.ink.opacity(0.35), radius: 3)
+                    Text(breedLabel)
+                        .font(DoggoTextStyle.caption)
+                        .foregroundStyle(DoggoColor.inkMuted)
+                        .shadow(color: DoggoColor.inkMuted.opacity(0.35), radius: 3)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                .padding(.horizontal, DoggoSpacing.md)
+                .padding(.vertical, DoggoSpacing.sm)
+                .glassEffect(.clear, in: Rectangle())
+                .background(DoggoColor.chipCream.opacity(0.1))
+            }
+            .clipped()
+        }
+        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.card))
+    }
+
+    private var fullBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             photo
                 .allowsHitTesting(false)
                 .overlay(alignment: .topLeading) {
-                    // Compact/grid cards don't show this — the breed
-                    // already repeats as caption text below (see the
-                    // isCompact branch further down), and showing it
-                    // twice on a small tile was redundant. Full-size
-                    // cards (Card Detail/Celebration) keep it.
-                    if !isCompact {
-                        TagChip(text: breedLabel)
-                            .padding(DoggoSpacing.sm)
-                    }
+                    TagChip(text: breedLabel)
+                        .padding(DoggoSpacing.sm)
                 }
                 .overlay(alignment: .topTrailing) {
-                    if showsGuardianTag {
-                        Text("GUARDIAN")
-                            .font(DoggoTextStyle.eyebrow)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, DoggoSpacing.sm)
-                            .padding(.vertical, DoggoSpacing.xs)
-                            .background(DoggoColor.marigold, in: Capsule())
-                            .padding(DoggoSpacing.sm)
-                    }
+                    if showsGuardianTag { guardianTag }
                 }
                 .overlay(alignment: .bottomLeading) {
-                    if !isCompact {
-                        Text(name)
-                            .font(DoggoTextStyle.displayMedium)
-                            .foregroundStyle(DoggoColor.ink)
-                            .padding(DoggoSpacing.md)
-                    }
+                    Text(name)
+                        .font(DoggoTextStyle.displayMedium)
+                        .foregroundStyle(DoggoColor.ink)
+                        .padding(DoggoSpacing.md)
                 }
 
             VStack(alignment: .leading, spacing: DoggoSpacing.xs) {
-                if isCompact {
-                    Text(name)
-                        .font(DoggoTextStyle.bodySemibold)
-                        .foregroundStyle(DoggoColor.ink)
+                HStack {
                     Text(breedLabel)
-                        .font(DoggoTextStyle.caption)
-                        .foregroundStyle(DoggoColor.inkMuted)
-                } else {
-                    HStack {
-                        Text(breedLabel)
-                            .font(DoggoTextStyle.headline)
-                            .foregroundStyle(DoggoColor.ink)
-                        Spacer()
-                        TagChip(text: serialText, prominent: true)
-                    }
-                    if !traits.isEmpty {
-                        HStack(spacing: DoggoSpacing.xs) {
-                            ForEach(traits, id: \.self) { TagChip(text: $0) }
-                        }
+                        .font(DoggoTextStyle.headline)
+                        .foregroundStyle(DoggoColor.ink)
+                    Spacer()
+                    TagChip(text: serialText, prominent: true)
+                }
+                if !traits.isEmpty {
+                    HStack(spacing: DoggoSpacing.xs) {
+                        ForEach(traits, id: \.self) { TagChip(text: $0) }
                     }
                 }
             }
             .padding(DoggoSpacing.md)
         }
         .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.card))
-        .clipShape(RoundedRectangle(cornerRadius: DoggoRadius.card))
-        .shadow(color: .black.opacity(0.08), radius: 12, y: 6)
+    }
+
+    private var guardianTag: some View {
+        Text("GUARDIAN")
+            .font(DoggoTextStyle.eyebrow)
+            .foregroundStyle(.white)
+            .padding(.horizontal, DoggoSpacing.sm)
+            .padding(.vertical, DoggoSpacing.xs)
+            .background(DoggoColor.marigold, in: Capsule())
+            .padding(DoggoSpacing.sm)
     }
 
     /// Square, matching the camera's square viewfinder — every caught dog's
@@ -114,32 +163,36 @@ struct DoggoCardView: View {
     private var photo: some View {
         Color.clear
             .aspectRatio(1, contentMode: .fit)
-            .overlay {
-                if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    PolkaDotPlaceholder(seed: placeholderSeed)
-                }
-            }
-            .overlay {
-                // A crossfading content layer above the still — never a
-                // new geometry peer, so this doesn't touch whatever
-                // matchedGeometryEffect chain this card participates in
-                // (decision #5). `.allowsHitTesting(false)` here is
-                // redundant with the outer one below, kept anyway per
-                // this project's own history with photo-adjacent
-                // hit-testing bugs (Resolved #1).
-                // Only worth mounting when there's actually a sequence — a
-                // lone plain photo is already drawn by the still layer below.
-                if slides.count > 1 || slides.first?.isMovie == true {
-                    GalleryPlaybackView(slides: slides, decodeSize: isCompact ? .tile : .card)
-                        .allowsHitTesting(false)
-                }
-            }
+            .overlay { mediaFill }
             .clipped()
             .contentShape(Rectangle())
+    }
+
+    /// The dog's media — still image (or placeholder), with the looping
+    /// gallery player layered on top when there's a sequence — scaled to fill
+    /// whatever frame it's given. Rendered as the main square photo and again,
+    /// mirrored, behind the grid tile's glass caption.
+    @ViewBuilder
+    private var mediaFill: some View {
+        ZStack {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                PolkaDotPlaceholder(seed: placeholderSeed)
+            }
+
+            // A crossfading content layer above the still — never a new
+            // geometry peer, so this doesn't touch whatever
+            // matchedGeometryEffect chain this card participates in
+            // (decision #5). Only worth mounting when there's actually a
+            // sequence — a lone plain photo is already drawn by the still layer.
+            if slides.count > 1 || slides.first?.isMovie == true {
+                GalleryPlaybackView(slides: slides, decodeSize: isCompact ? .tile : .card)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 }
 
