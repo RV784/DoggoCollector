@@ -19,11 +19,17 @@ struct CollectionView: View {
     @Environment(GameCenterAuthProvider.self) private var authProvider
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
+    @Environment(DisplayMetrics.self) private var displayMetrics
     @Query(sort: \CaughtDog.caughtAt, order: .reverse) private var catches: [CaughtDog]
 
     @Namespace private var morphNamespace
     @State private var surfaceState: SurfaceState = .idle
     @State private var caughtDog: CaughtDog?
+    /// Gates the live camera feed so it appears only AFTER the pill has finished
+    /// growing into the panel — the morph reads as "grow the button, then switch
+    /// to the viewfinder." Also keeps all camera-session work out of the morph
+    /// animation (nothing heavy mounts until the growth is done).
+    @State private var showCameraFeed = false
     /// Scroll-driven: the "Catch a doggo" pill collapses to a circle (matching
     /// the paw button) when scrolling down, expands back to a pill scrolling up.
     @State private var catchCollapsed = false
@@ -34,6 +40,16 @@ struct CollectionView: View {
     /// The previous scrolled-distance, so we can tell scroll direction and
     /// expand the instant the user scrolls back up (not only at the top).
     @State private var lastScrolled: CGFloat = 0
+
+    /// The camera panel's device-concentric corner radius: the display's own
+    /// corner minus the panel's `lg` inset (a uniform gap to the screen edge).
+    /// A CONSTANT — resolved from DisplayMetrics (read once at the window root),
+    /// so it matches the device with zero morph lag. Falls back to 32.
+    private var panelCornerRadius: CGFloat {
+        guard let display = displayMetrics.displayCornerRadius else { return 32 }
+        let concentric = display - DoggoSpacing.lg
+        return concentric > 0 ? concentric : 32
+    }
 
     private var hasWards: Bool { catches.contains { $0.isWard } }
     private var activeWards: [CaughtDog] { catches.filter(\.isActiveWard) }
@@ -49,6 +65,9 @@ struct CollectionView: View {
     // softer springs used for ordinary UI feedback elsewhere in the app.
     private let morphAnimation: Animation = .spring(response: 0.4, dampingFraction: 1.0, blendDuration: 0)
     private let morphOpenAnimation: Animation = .spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
+    // Camera panel → pill (dismiss). Its own, slightly slower spring — the
+    // default morphAnimation read as a bit too fast collapsing back down.
+    private let morphCloseAnimation: Animation = .spring(response: 0.5, dampingFraction: 1.0, blendDuration: 0)
     // The pill↔circle collapse — a springy little bounce, its own animation
     // so it never entangles with the camera morph's transaction. The low
     // damping is what gives the settle its overshoot/bounce.
@@ -541,15 +560,21 @@ struct CollectionView: View {
     private var cameraPanel: some View {
         ZStack {
             Color.black
-                .clipShape(RoundedRectangle(cornerRadius: 32))
+                .clipShape(RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous))
                 .matchedGeometryEffect(id: "catchSurface", in: morphNamespace)
 
-            CameraView(
-                onClose: closeCamera,
-                onCaught: handleCaught
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 32))
-            .transition(.opacity)
+            // Mounted only once the growth is finished (showCameraFeed) — the
+            // black rounded rect grows first, then the live viewfinder fades in
+            // on top of it. Delaying the mount also keeps the AVCaptureSession
+            // startup entirely out of the morph animation.
+            if showCameraFeed {
+                CameraView(
+                    onClose: closeCamera,
+                    onCaught: handleCaught
+                )
+                .clipShape(RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous))
+                .transition(.opacity)
+            }
         }
         .frame(height: UIScreen.main.bounds.height * 0.62)
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
@@ -557,14 +582,22 @@ struct CollectionView: View {
 
     private func openCamera() {
         withAnimation(morphOpenAnimation) { surfaceState = .camera }
+        // Reveal the viewfinder as the panel finishes growing — slightly into
+        // the tail of the spring so the live feed comes up a touch sooner.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+            guard surfaceState == .camera else { return }
+            withAnimation(.easeInOut(duration: 0.25)) { showCameraFeed = true }
+        }
     }
 
     private func closeCamera() {
-        withAnimation(morphAnimation) { surfaceState = .idle }
+        showCameraFeed = false
+        withAnimation(morphCloseAnimation) { surfaceState = .idle }
     }
 
     private func handleCaught(_ dog: CaughtDog) {
         caughtDog = dog
+        showCameraFeed = false
         withAnimation(morphAnimation) { surfaceState = .celebration }
     }
 

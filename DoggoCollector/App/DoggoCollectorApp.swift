@@ -19,6 +19,9 @@ struct DoggoCollectorApp: App {
     // from the start (refunds/Ask-to-Buy approvals can arrive any time),
     // per Apple's StoreKit 2 guidance — see GuardianEntitlementStore.
     @State private var entitlements = GuardianEntitlementStore()
+    /// The device display's corner radius, resolved once at the window root
+    /// (must be read here, not inside a NavigationStack — see DisplayMetrics).
+    @State private var displayMetrics = DisplayMetrics()
 
     init() {
         // Register the Poster Maker's bundled display fonts (Baloo 2 / Nunito
@@ -51,6 +54,20 @@ struct DoggoCollectorApp: App {
             RootView()
                 .environment(authProvider)
                 .environment(entitlements)
+                .environment(displayMetrics)
+                // Resolve the display's corner radius at the window root, where
+                // the concentric container IS the display. A background reader
+                // so it never interferes with any view's layout/morphs.
+                .background {
+                    GeometryReader { geo in
+                        Color.clear.onAppear {
+                            if displayMetrics.displayCornerRadius == nil {
+                                displayMetrics.displayCornerRadius = geo.concentricCornerRadii?.bottomLeading
+                            }
+                        }
+                    }
+                    .ignoresSafeArea()
+                }
                 // The app has no designed dark theme anywhere — every
                 // DoggoColor value is a hardcoded light-mode hex. Without
                 // this, native system-styled text (TextField input/
