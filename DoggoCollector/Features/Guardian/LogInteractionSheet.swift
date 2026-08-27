@@ -62,7 +62,7 @@ struct LogInteractionSheet: View {
             }
             .frame(maxWidth: .infinity)
             .padding(DoggoSpacing.lg)
-            .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+            .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 if type == .vaccinated {
                     Text("TRACKED")

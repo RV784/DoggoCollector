@@ -143,16 +143,16 @@ struct GuardianDossierView: View {
     private func vitalCell(label: String, value: String, action: (() -> Void)? = nil) -> some View {
         let cell = VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(DoggoTextStyle.eyebrow)
+                .font(DoggoFont.body(11, weight: .bold))
                 .foregroundStyle(DoggoColor.inkMuted)
             Text(value)
                 .font(DoggoTextStyle.bodySemibold)
                 .foregroundStyle(DoggoColor.ink)
                 .lineLimit(2)
         }
-        .padding(DoggoSpacing.md)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
         return Group {
             if let action {
@@ -181,7 +181,7 @@ struct GuardianDossierView: View {
                     .foregroundStyle(DoggoColor.inkMuted)
             }
             .padding(DoggoSpacing.md)
-            .background(DoggoColor.chipCream, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+            .background(DoggoColor.chipCream, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -231,7 +231,7 @@ struct GuardianDossierView: View {
                 .foregroundStyle(DoggoColor.inkMuted)
         }
         .padding(DoggoSpacing.md)
-        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 

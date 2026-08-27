@@ -76,7 +76,7 @@ struct MedicalRecordsSection: View {
         VStack(alignment: .leading, spacing: DoggoSpacing.xs) {
             thumbnail(record)
                 .frame(width: 92, height: 78)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             Text(record.recordType)
                 .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                 .foregroundStyle(DoggoColor.ink)
@@ -106,7 +106,7 @@ struct MedicalRecordsSection: View {
     }
 
     private var addTile: some View {
-        RoundedRectangle(cornerRadius: 16)
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
             .strokeBorder(DoggoColor.dashedBorder, style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
             .frame(width: 92, height: 78)
             .overlay {

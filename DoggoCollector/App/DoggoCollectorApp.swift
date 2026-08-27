@@ -21,6 +21,9 @@ struct DoggoCollectorApp: App {
     @State private var entitlements = GuardianEntitlementStore()
 
     init() {
+        // Register the Poster Maker's bundled display fonts (Baloo 2 / Nunito
+        // Sans / Caveat) once, before any view can ask for them.
+        PosterFont.register()
         do {
             // CloudKit-backed private sync (decision #18). Every model
             // passed here needs a literal default (or optionality) on
@@ -30,7 +33,7 @@ struct DoggoCollectorApp: App {
             modelContainer = try ModelContainer(
                 for: CaughtDog.self, UserProfile.self, CareEntry.self,
                 MedicationSchedule.self, MedicalRecord.self, MedicalAttachment.self,
-                DogPhoto.self,
+                DogPhoto.self, Poster.self,
                 configurations: config
             )
         } catch {

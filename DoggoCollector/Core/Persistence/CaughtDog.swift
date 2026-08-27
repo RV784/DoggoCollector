@@ -70,6 +70,11 @@ final class CaughtDog {
     @Relationship(deleteRule: .cascade, inverse: \MedicalRecord.dog)
     var medicalRecords: [MedicalRecord]? = []
 
+    /// Generated shareable posters (Missing/Found/Adopt), kept so one can be
+    /// re-opened, re-edited and re-shared without regenerating.
+    @Relationship(deleteRule: .cascade, inverse: \Poster.dog)
+    var posters: [Poster]? = []
+
     // Breed classification — literal defaults for the same lightweight-
     // migration reason as the Guardian fields above.
     /// Raw class label from CoreMLBreedClassifier, including

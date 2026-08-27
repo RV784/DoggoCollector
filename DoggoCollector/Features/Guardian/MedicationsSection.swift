@@ -72,7 +72,7 @@ struct MedicationsSection: View {
             }
             .padding(DoggoSpacing.lg)
             .background(
-                RoundedRectangle(cornerRadius: 18)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .strokeBorder(DoggoColor.dashedBorder, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
             )
         }
@@ -131,7 +131,7 @@ struct MedicationsSection: View {
             }
         }
         .padding(DoggoSpacing.md)
-        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
     }
 

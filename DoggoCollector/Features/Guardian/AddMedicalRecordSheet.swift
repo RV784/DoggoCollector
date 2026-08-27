@@ -103,9 +103,9 @@ struct AddMedicalRecordSheet: View {
         }
         .frame(maxWidth: .infinity)
         .padding(DoggoSpacing.lg)
-        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: 20))
+        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(DoggoColor.chipCream, lineWidth: 2)
         )
     }

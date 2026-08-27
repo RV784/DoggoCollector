@@ -53,6 +53,8 @@ struct DogGalleryView: View {
     @State private var showPledgeSheet = false
     @State private var showLogSheet = false
     @State private var showShelterPass = false
+    @State private var showPosterStudio = false
+    @State private var posterPurpose: PosterPurpose = .missing
     @State private var showRename = false
     @State private var renameText = ""
     @State private var showEditBreed = false
@@ -155,6 +157,7 @@ struct DogGalleryView: View {
             }
         }
         .fullScreenCover(isPresented: $showShelterPass) { ShelterPassView(dog: dog) }
+        .fullScreenCover(isPresented: $showPosterStudio) { PosterStudioView(dog: dog, purpose: posterPurpose) }
         .navigationDestination(item: $viewerPhoto) { photo in
             PhotoViewerView(dog: dog, initialPhotoID: photo.id, zoomNamespace: zoomNamespace)
         }
@@ -314,7 +317,7 @@ struct DogGalleryView: View {
                     .foregroundStyle(DoggoColor.callGreen)
                     .padding(.horizontal, DoggoSpacing.md)
                     .frame(height: 44)
-                    .glassEffect(.clear, in: .capsule)
+                    .glassEffect(.regular, in: .capsule)
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, DoggoSpacing.sm)
@@ -348,18 +351,28 @@ struct DogGalleryView: View {
 
                 centerButton
 
-                // The Instagram/native share moved into the photo viewer's
-                // bottom-left. This slot is now the Shelter Pass export — a
-                // Guardian-only document, so it's shown only for wards (nothing
-                // to put on a pass for a dog with no dossier).
+                // The bottom-right slot makes a shareable poster (Missing /
+                // Found / Adopt) for any dog. For a ward it's a menu that also
+                // offers the Guardian-only Shelter Pass; a non-ward goes
+                // straight to the poster.
                 if dog.isWard {
-                    Button { showShelterPass = true } label: {
-                        Image(systemName: "doc.text.fill")
+                    Menu {
+                        Button { openPoster() } label: { Label("Make poster", systemImage: "photo.artframe") }
+                        Button { showShelterPass = true } label: { Label("Make shelter pass", systemImage: "doc.text.fill") }
+                    } label: {
+                        Image(systemName: "photo.artframe")
+                            .foregroundStyle(DoggoColor.marigold)
+                            .glassCircleChrome(size: 58)
+                    }
+                    .accessibilityLabel("Make poster or shelter pass")
+                } else {
+                    Button { openPoster() } label: {
+                        Image(systemName: "photo.artframe")
                             .foregroundStyle(DoggoColor.marigold)
                             .glassCircleChrome(size: 58)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Shelter Pass")
+                    .accessibilityLabel("Make poster")
                 }
             }
         }
@@ -472,6 +485,14 @@ struct DogGalleryView: View {
 
     private func openCamera() {
         withAnimation(morphAnimation) { surface = .camera }
+    }
+
+    /// Default the poster's purpose from context: a ward you look after most
+    /// likely needs a Missing poster; a dog you've merely logged, a Found one.
+    /// The purpose is changeable on the pre-flight screen either way.
+    private func openPoster() {
+        posterPurpose = dog.isWard ? .missing : .found
+        showPosterStudio = true
     }
 
     private func closeCamera() {

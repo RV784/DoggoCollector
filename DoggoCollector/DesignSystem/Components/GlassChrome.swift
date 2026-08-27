@@ -17,7 +17,7 @@ struct GlassCircleChrome: ViewModifier {
         content
             .frame(width: size, height: size)
             .contentShape(Circle())
-            .glassEffect(.clear.interactive(interactive), in: .circle)
+            .glassEffect(.regular.interactive(interactive), in: .circle)
     }
 }
 

@@ -15,6 +15,7 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
+import UIKit
 
 struct CareView: View {
     @Environment(\.dismiss) private var dismiss
@@ -27,6 +28,9 @@ struct CareView: View {
 
     @State private var places: [CarePlace]?
     @State private var searchFailed = false
+    /// True once the inline segment has scrolled up out of view — drives the
+    /// pinned copy that fades in at the top.
+    @State private var showPinnedSegment = false
     /// The radius actually used for the last completed search — may be
     /// larger than `radiusKm` (see `fetchWithMinimum`), so copy that
     /// references "within N km" stays accurate.
@@ -61,22 +65,39 @@ struct CareView: View {
         ZStack {
             DoggoColor.cream.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                VStack(spacing: DoggoSpacing.lg) {
-                    header
-
-                    if hasLocationPermission {
-                        scoutBanner
+            if hasLocationPermission {
+                // Header + segment + list all scroll together as one surface —
+                // full-screen scroll, matching CollectionView's own scrolling
+                // header, rather than a fixed chrome block over a boxed list.
+                ScrollView {
+                    VStack(spacing: DoggoSpacing.lg) {
+                        header
                         categoryPicker
+                            // Watch the inline segment's bottom edge in the
+                            // scroll's own coordinate space; when it passes above
+                            // the top, reveal the pinned copy.
+                            .onGeometryChange(for: CGFloat.self) { proxy in
+                                proxy.frame(in: .named("careScroll")).maxY
+                            } action: { updatePinnedSegment(inlineBottom: $0) }
+                        permissionedContent
+                    }
+                    .padding(.horizontal, DoggoSpacing.lg)
+                    .padding(.top, DoggoSpacing.lg)
+                    .padding(.bottom, DoggoSpacing.xxl)
+                }
+                .coordinateSpace(.named("careScroll"))
+                .refreshable { await search() }
+                .overlay(alignment: .top) {
+                    if showPinnedSegment {
+                        pinnedSegment
+                            .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 }
-                .padding(.horizontal, DoggoSpacing.lg)
-                .padding(.top, DoggoSpacing.lg)
-                .padding(.bottom, hasLocationPermission ? DoggoSpacing.lg : 0)
-
-                if hasLocationPermission {
-                    content
-                } else {
+            } else {
+                VStack(spacing: DoggoSpacing.lg) {
+                    header
+                        .padding(.horizontal, DoggoSpacing.lg)
+                        .padding(.top, DoggoSpacing.lg)
                     noPermissionState
                         .padding(.horizontal, DoggoSpacing.lg)
                 }
@@ -90,13 +111,13 @@ struct CareView: View {
             ToolbarItem(placement: .topBarLeading) {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
-                        .foregroundStyle(DoggoColor.ink)
+                        .foregroundStyle(DoggoColor.marigold)
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(value: ProfileDestination()) {
                     Image(systemName: "person.fill")
-                        .foregroundStyle(DoggoColor.ink)
+                        .foregroundStyle(DoggoColor.marigold)
                 }
             }
         }
@@ -122,60 +143,92 @@ struct CareView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var scoutBanner: some View {
-        HStack(spacing: DoggoSpacing.sm) {
-            ScoutMascot(expression: .idle, size: 40)
-            Text("Scout found \(places?.count ?? 0) \(category.title.lowercased()) nearby")
-                .font(DoggoTextStyle.bodySemibold)
-                .foregroundStyle(DoggoColor.ink)
-            Spacer()
-        }
-        .padding(DoggoSpacing.md)
-        .background(DoggoColor.chipCream, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
-    }
+    /// Native segmented controls take their selected-segment fill from
+    /// UISegmentedControl's UIKit appearance, not a SwiftUI modifier — so tint
+    /// it marigold here, with explicit white-on-selected / ink-on-normal text
+    /// (which also keeps it readable against cream, the exact contrast problem
+    /// CLAUDE.md decision #11 flagged for the un-styled native control). Run
+    /// once, lazily, the first time the picker is built. This is the app's only
+    /// native segmented control, so touching the global appearance is contained.
+    private static let configureSegmentedAppearance: Void = {
+        let appearance = UISegmentedControl.appearance()
+        appearance.selectedSegmentTintColor = UIColor(DoggoColor.marigold)
+        appearance.setTitleTextAttributes([.foregroundColor: UIColor.white], for: .selected)
+        appearance.setTitleTextAttributes([.foregroundColor: UIColor(DoggoColor.ink)], for: .normal)
+    }()
 
     private var categoryPicker: some View {
-        SegmentedTabs(options: CareCategory.allCases.map { ($0, $0.title) }, selection: $category)
+        _ = Self.configureSegmentedAppearance
+        return Picker("Care category", selection: $category) {
+            ForEach(CareCategory.allCases, id: \.self) { cat in
+                Text(cat.title).tag(cat)
+            }
+        }
+        .pickerStyle(.segmented)
     }
 
+    /// The same segment, pinned below the nav buttons once the inline one has
+    /// scrolled away. Sits on a clear Liquid Glass capsule sized to match the
+    /// control, so the list scrolling behind it lenses through the glass rather
+    /// than being hidden by a solid bar.
+    private var pinnedSegment: some View {
+        categoryPicker
+            .padding(.horizontal, DoggoSpacing.xs)
+            .padding(.vertical, DoggoSpacing.xs)
+            .glassEffect(.clear, in: .capsule)
+            .padding(.horizontal, DoggoSpacing.lg)
+            .padding(.vertical, DoggoSpacing.sm)
+            .frame(maxWidth: .infinity)
+    }
+
+    /// Show the pinned segment once the inline one's bottom edge scrolls above
+    /// the top of the scroll viewport; hide it just before the inline one
+    /// scrolls back into view. The small gap between the two thresholds is
+    /// hysteresis so it can't flicker at the boundary. Animated subtly.
+    private func updatePinnedSegment(inlineBottom: CGFloat) {
+        let shouldShow = showPinnedSegment ? inlineBottom < 8 : inlineBottom < 0
+        guard shouldShow != showPinnedSegment else { return }
+        withAnimation(.easeInOut(duration: 0.22)) { showPinnedSegment = shouldShow }
+    }
+
+    /// The part below the header + segment, inside the shared ScrollView.
+    /// The list is a plain LazyVStack (the outer ScrollView does the scrolling);
+    /// the loading/empty/error states get a min height so their Spacers still
+    /// center them within the visible area even though the scroll is unbounded.
     @ViewBuilder
-    private var content: some View {
+    private var permissionedContent: some View {
         if searchFailed {
             searchFailedState
-                .padding(.horizontal, DoggoSpacing.lg)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, minHeight: centeredStateMinHeight)
         } else if let places {
             if places.isEmpty {
                 noResultsState
-                    .padding(.horizontal, DoggoSpacing.lg)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: centeredStateMinHeight)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: DoggoSpacing.sm) {
-                        ForEach(places) { place in
-                            Button {
-                                selectedPlace = place
-                            } label: {
-                                placeRow(place)
-                            }
-                            .buttonStyle(.plain)
+                LazyVStack(spacing: DoggoSpacing.sm) {
+                    ForEach(places) { place in
+                        Button {
+                            selectedPlace = place
+                        } label: {
+                            placeRow(place)
                         }
-                        Text("Listings come from Apple Maps \u{2014} details may occasionally be out of date.")
-                            .font(DoggoTextStyle.caption)
-                            .foregroundStyle(DoggoColor.inkMuted)
-                            .padding(.top, DoggoSpacing.sm)
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, DoggoSpacing.lg)
-                    .padding(.top, DoggoSpacing.md)
+                    Text("Listings come from Apple Maps \u{2014} details may occasionally be out of date.")
+                        .font(DoggoTextStyle.caption)
+                        .foregroundStyle(DoggoColor.inkMuted)
+                        .padding(.top, DoggoSpacing.sm)
                 }
-                .contentMargins(.bottom, DoggoSpacing.xxl, for: .scrollContent)
-                .refreshable { await search() }
             }
         } else {
             loadingState
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, minHeight: centeredStateMinHeight)
         }
     }
+
+    /// Enough height that a Spacer-centered state reads as centered on screen
+    /// while living inside the (otherwise intrinsically-sized) scroll content.
+    private var centeredStateMinHeight: CGFloat { UIScreen.main.bounds.height * 0.6 }
 
     private var loadingState: some View {
         VStack(spacing: DoggoSpacing.lg) {
@@ -270,7 +323,7 @@ struct CareView: View {
         }
         .padding(DoggoSpacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private func requestLocation() {

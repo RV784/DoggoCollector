@@ -93,9 +93,9 @@ struct StatusBadge: View {
             Spacer(minLength: 0)
         }
         .padding(DoggoSpacing.md)
-        .background(status.backgroundColor, in: RoundedRectangle(cornerRadius: DoggoRadius.control))
+        .background(status.backgroundColor, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: DoggoRadius.control)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(status.borderColor, lineWidth: 1)
         )
     }

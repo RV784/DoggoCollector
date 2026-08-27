@@ -148,7 +148,13 @@ struct CollectionView: View {
                     }
                 }
                 .padding(.horizontal, DoggoSpacing.lg)
+                // The outer ZStack is inset by the bottom safe area, so a plain
+                // .padding(.bottom, lg) here stacks on top of that inset (~34pt)
+                // and the gap below the buttons ends up much larger than the
+                // matching lg gap on the leading/trailing. Extend into the safe
+                // area and pad from the true screen edge so all three match.
                 .padding(.bottom, DoggoSpacing.lg)
+                .ignoresSafeArea(.container, edges: .bottom)
 
                 // The "N doses due today" chip's *expanded* home — floating just
                 // above the pill. When the pill collapses it hands off (via the
@@ -163,9 +169,15 @@ struct CollectionView: View {
                         .padding(.horizontal, DoggoSpacing.lg)
                     }
                 }
+                // Share the button bar's coordinate frame (true screen edge, not
+                // the safe-area line) so the chip stays the same ~8pt above the
+                // pill now that the pill sits lower.
                 .padding(.bottom, 90)
+                .ignoresSafeArea(.container, edges: .bottom)
 
-                // Stable anchor for the active camera panel.
+                // Stable anchor for the active camera panel. Shares the pill's
+                // coordinate frame (true screen edge) so the panel's bottom lines
+                // up with the pill it morphs out of, not ~34pt higher.
                 ZStack {
                     if surfaceState == .camera {
                         cameraPanel
@@ -173,6 +185,7 @@ struct CollectionView: View {
                             .padding(.bottom, DoggoSpacing.lg)
                     }
                 }
+                .ignoresSafeArea(.container, edges: .bottom)
 
                 // Stable anchor for the post-catch celebration — the
                 // viewfinder continues the same morph chain straight into
@@ -189,6 +202,10 @@ struct CollectionView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            // Restore left-edge swipe-back on every pushed screen — all of
+            // them hide the system back button, which otherwise kills the
+            // gesture. Map opts out (see InteractiveSwipeBack.isSuppressed).
+            .enableInteractiveSwipeBack()
             // The gallery replaces CardDetailView as a tapped dog's screen.
             // CardDetailView is retained in the codebase (Scout's Sniff and
             // the insight panel get repurposed from it later), just no longer
@@ -337,13 +354,14 @@ struct CollectionView: View {
         )
         .overlay(alignment: .topLeading) {
             StatusBadge.Compact(status: dog.sterilization)
-                .padding(DoggoSpacing.sm)
+                // Inset to clear the rounded (radius 36) card corner.
+                .padding(DoggoSpacing.md)
         }
         .overlay(alignment: .bottomTrailing) {
             if dueToday > 0 {
                 dosesDueChip(count: dueToday)
-                    .padding(.horizontal, DoggoSpacing.md)
-                    .padding(.vertical, DoggoSpacing.md)
+                    .padding(.horizontal, DoggoSpacing.lg)
+                    .padding(.vertical, DoggoSpacing.lg)
             }
         }
         .frame(width: wardCardWidth)
@@ -449,12 +467,17 @@ struct CollectionView: View {
     private func updateCatchCollapse(offset: CGFloat) {
         let baseline = scrollBaseline ?? offset
         if scrollBaseline == nil { scrollBaseline = offset }
-        let scrolled = abs(offset - baseline)
-        let delta = scrolled - lastScrolled
-        lastScrolled = scrolled
+        // Signed distance scrolled INTO the content (offset goes negative as you
+        // scroll down here). Using a signed value — not abs() — means an
+        // overscroll PAST the top (pull-to-refresh rubber-band) reads as a
+        // negative "into content", i.e. < 40, so it stays expanded instead of
+        // toggling as the abs() distance grew and then sprang back.
+        let intoContent = baseline - offset
+        let delta = intoContent - lastScrolled
+        lastScrolled = intoContent
 
-        if scrolled < 40 {
-            setCatchCollapsed(false) // near the top: always the full pill
+        if intoContent < 40 {
+            setCatchCollapsed(false) // near the top / overscrolling: always full pill
         } else if delta < -4 {
             setCatchCollapsed(false) // moving back toward the top → scrolling up
         } else if delta > 4 {

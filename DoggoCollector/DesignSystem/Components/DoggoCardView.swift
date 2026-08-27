@@ -48,9 +48,14 @@ struct DoggoCardView: View {
                 fullBody
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: DoggoRadius.card))
+        .clipShape(RoundedRectangle(cornerRadius: cardRadius, style: .continuous))
         .shadow(color: .black.opacity(0.08), radius: 12, y: 6)
     }
+
+    /// Corner radius for the card's squircle. Larger than the shared
+    /// DoggoRadius.card (20) so the `.continuous` curve reads as a real
+    /// squircle rather than a barely-rounded rectangle.
+    private let cardRadius: CGFloat = 36
 
     /// Height of the reflection/caption strip below the square photo.
     private let reflectionHeight: CGFloat = 60
@@ -93,18 +98,19 @@ struct DoggoCardView: View {
                         .shadow(color: DoggoColor.ink.opacity(0.35), radius: 3)
                     Text(breedLabel)
                         .font(DoggoTextStyle.caption)
-                        .foregroundStyle(DoggoColor.inkMuted)
+                        .foregroundStyle(DoggoColor.ink.opacity(0.7))
                         .shadow(color: DoggoColor.inkMuted.opacity(0.35), radius: 3)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                .padding(.horizontal, DoggoSpacing.md)
-                .padding(.vertical, DoggoSpacing.sm)
+                // Keep the name/breed clear of the rounded (radius 36) corners.
+                .padding(.horizontal, DoggoSpacing.lg)
+                .padding(.vertical, DoggoSpacing.md)
                 .glassEffect(.clear, in: Rectangle())
-                .background(DoggoColor.chipCream.opacity(0.1))
+                .background(DoggoColor.chipCream.opacity(0.5))
             }
             .clipped()
         }
-        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.card))
+        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: cardRadius, style: .continuous))
     }
 
     private var fullBody: some View {
@@ -141,7 +147,7 @@ struct DoggoCardView: View {
             }
             .padding(DoggoSpacing.md)
         }
-        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: DoggoRadius.card))
+        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: cardRadius, style: .continuous))
     }
 
     private var guardianTag: some View {
@@ -151,7 +157,8 @@ struct DoggoCardView: View {
             .padding(.horizontal, DoggoSpacing.sm)
             .padding(.vertical, DoggoSpacing.xs)
             .background(DoggoColor.marigold, in: Capsule())
-            .padding(DoggoSpacing.sm)
+            // Inset from the (now more rounded, radius 36) card corner.
+            .padding(DoggoSpacing.md)
     }
 
     /// Square, matching the camera's square viewfinder — every caught dog's
