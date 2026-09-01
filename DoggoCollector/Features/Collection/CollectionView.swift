@@ -90,7 +90,7 @@ struct CollectionView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                DoggoColor.cream.ignoresSafeArea()
+                PackMeshBackground()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: DoggoSpacing.xl) {

@@ -26,6 +26,10 @@ enum DoggoColor {
     static let marigoldContrast = Color(hex: 0x0E7490)
 
     static let cream = Color(hex: 0xFDEFDC)
+    /// A very subtle cream-white — the bottom stop of the home-screen mesh
+    /// gradient (top = `cream`, bottom = this). Nearly white, just warm enough
+    /// to not read as pure #FFF.
+    static let creamFade = Color(hex: 0xFFFFF0)
     static let ink = Color(hex: 0x2B2013)
     static let inkOffWhite = Color(hex: 0xE5E0D1)
     static let inkMuted = Color(hex: 0x8A7A63)

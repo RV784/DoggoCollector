@@ -28,9 +28,6 @@ struct CareView: View {
 
     @State private var places: [CarePlace]?
     @State private var searchFailed = false
-    /// True once the inline segment has scrolled up out of view — drives the
-    /// pinned copy that fades in at the top.
-    @State private var showPinnedSegment = false
     /// The radius actually used for the last completed search — may be
     /// larger than `radiusKm` (see `fetchWithMinimum`), so copy that
     /// references "within N km" stays accurate.
@@ -63,35 +60,26 @@ struct CareView: View {
 
     var body: some View {
         ZStack {
-            DoggoColor.cream.ignoresSafeArea()
+            PackMeshBackground()
 
             if hasLocationPermission {
-                // Header + segment + list all scroll together as one surface —
-                // full-screen scroll, matching CollectionView's own scrolling
-                // header, rather than a fixed chrome block over a boxed list.
+                // Header + list scroll together as one surface — full-screen
+                // scroll, matching CollectionView's own scrolling header. The
+                // Vets/Shelters segment isn't in the scroll at all — it lives
+                // as a single control pinned at the bottom (see below).
                 ScrollView {
                     VStack(spacing: DoggoSpacing.lg) {
                         header
-                        categoryPicker
-                            // Watch the inline segment's bottom edge in the
-                            // scroll's own coordinate space; when it passes above
-                            // the top, reveal the pinned copy.
-                            .onGeometryChange(for: CGFloat.self) { proxy in
-                                proxy.frame(in: .named("careScroll")).maxY
-                            } action: { updatePinnedSegment(inlineBottom: $0) }
                         permissionedContent
                     }
                     .padding(.horizontal, DoggoSpacing.lg)
                     .padding(.top, DoggoSpacing.lg)
-                    .padding(.bottom, DoggoSpacing.xxl)
+                    // Room so the last row clears the pinned bottom segment.
+                    .padding(.bottom, 96)
                 }
-                .coordinateSpace(.named("careScroll"))
                 .refreshable { await search() }
-                .overlay(alignment: .top) {
-                    if showPinnedSegment {
-                        pinnedSegment
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                    }
+                .overlay(alignment: .bottom) {
+                    pinnedSegment
                 }
             } else {
                 VStack(spacing: DoggoSpacing.lg) {
@@ -167,31 +155,21 @@ struct CareView: View {
         .pickerStyle(.segmented)
     }
 
-    /// The same segment, pinned below the nav buttons once the inline one has
-    /// scrolled away. Sits on a clear Liquid Glass capsule sized to match the
-    /// control, so the list scrolling behind it lenses through the glass rather
-    /// than being hidden by a solid bar.
+    /// The one Vets/Shelters control, pinned at the bottom of the screen. Sits
+    /// on a clear Liquid Glass capsule sized to match the control, so the list
+    /// scrolling behind it lenses through the glass rather than being hidden by
+    /// a solid bar.
     private var pinnedSegment: some View {
         categoryPicker
             .padding(.horizontal, DoggoSpacing.xs)
             .padding(.vertical, DoggoSpacing.xs)
             .glassEffect(.clear, in: .capsule)
             .padding(.horizontal, DoggoSpacing.lg)
-            .padding(.vertical, DoggoSpacing.sm)
+            .padding(.bottom, DoggoSpacing.sm)
             .frame(maxWidth: .infinity)
     }
 
-    /// Show the pinned segment once the inline one's bottom edge scrolls above
-    /// the top of the scroll viewport; hide it just before the inline one
-    /// scrolls back into view. The small gap between the two thresholds is
-    /// hysteresis so it can't flicker at the boundary. Animated subtly.
-    private func updatePinnedSegment(inlineBottom: CGFloat) {
-        let shouldShow = showPinnedSegment ? inlineBottom < 8 : inlineBottom < 0
-        guard shouldShow != showPinnedSegment else { return }
-        withAnimation(.easeInOut(duration: 0.22)) { showPinnedSegment = shouldShow }
-    }
-
-    /// The part below the header + segment, inside the shared ScrollView.
+    /// The part below the header, inside the shared ScrollView.
     /// The list is a plain LazyVStack (the outer ScrollView does the scrolling);
     /// the loading/empty/error states get a min height so their Spacers still
     /// center them within the visible area even though the scroll is unbounded.
@@ -323,7 +301,11 @@ struct CareView: View {
         }
         .padding(DoggoSpacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DoggoColor.cardWhite, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(DoggoColor.cardWhite.opacity(0.5), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(DoggoColor.marigold.opacity(0.5), lineWidth: 0.35)
+        }
     }
 
     private func requestLocation() {
